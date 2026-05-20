@@ -37,9 +37,7 @@ describe("index (default export)", () => {
 
     // Event handlers registered (5 events)
     expect(mockObj.on).toHaveBeenCalledTimes(5);
-    const eventNames = mockObj.on.mock.calls.map(
-      (call: unknown) => (call as [string, unknown])[0],
-    );
+    const eventNames = mockObj.on.mock.calls.map((call: unknown) => (call as [string, unknown])[0]);
     expect(eventNames).toContain("session_start");
     expect(eventNames).toContain("session_tree");
     expect(eventNames).toContain("before_agent_start");

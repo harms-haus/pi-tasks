@@ -1,10 +1,5 @@
 import type { TaskBoardSnapshot, TaskEdit } from "../../types";
-import {
-  createEmptyBoard,
-  writeTasks,
-  compileBoard,
-  applyEdits,
-} from "../../engine";
+import { createEmptyBoard, writeTasks, compileBoard, applyEdits } from "../../engine";
 
 // ── Shared constants ──
 

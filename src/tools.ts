@@ -386,17 +386,13 @@ export function createGetReadyTasksTool(
 
         if (result.claimed.length === 0) {
           // Determine why no tasks were claimed
-          const allTerminal = board.tasks.every(
-            (t) => TERMINAL_STATUSES.has(t.status),
-          );
+          const allTerminal = board.tasks.every((t) => TERMINAL_STATUSES.has(t.status));
           if (allTerminal && board.tasks.length > 0) {
             return makeErrorResult(formatAllDoneMessage(board), board);
           }
 
           // Deadlock: non-terminal tasks but none actionable
-          const nonTerminal = board.tasks.filter(
-            (t) => !TERMINAL_STATUSES.has(t.status),
-          );
+          const nonTerminal = board.tasks.filter((t) => !TERMINAL_STATUSES.has(t.status));
           if (nonTerminal.length > 0) {
             const blockedList = nonTerminal
               .map((t) => `[${t.id}] ${t.title} (${t.status}, Phase ${t.phase})`)

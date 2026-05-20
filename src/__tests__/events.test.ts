@@ -166,8 +166,6 @@ describe("session_tree handler", () => {
     expect(currentBoard.tasks).toHaveLength(1);
     expect(ctx.ui.setStatus).toHaveBeenCalled();
   });
-
-
 });
 
 // ═══════════════════════════════════════════

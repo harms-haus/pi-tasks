@@ -243,27 +243,27 @@ describe("Phase gating", () => {
     ]);
 
     // Phase 1 active
-    expect(board.phases.find(p => p.status === 'active')?.phase ?? null).toBe(1);
+    expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(1);
 
     // Complete phase 1
     board = claimReadyTasks(board, 1, NOW).board;
     board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
     board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-    expect(board.phases.find(p => p.status === 'active')?.phase ?? null).toBe(2);
+    expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(2);
     expect(board.tasks[1].status).toBe("ready");
 
     // Complete phase 2
     board = claimReadyTasks(board, 1, NOW).board;
     board = applyEdits(board, [{ id: "task-2", type: "advance" }], NOW);
     board = applyEdits(board, [{ id: "task-2", type: "advance" }], NOW);
-    expect(board.phases.find(p => p.status === 'active')?.phase ?? null).toBe(3);
+    expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(3);
     expect(board.tasks[2].status).toBe("ready");
 
     // Complete phase 3
     board = claimReadyTasks(board, 1, NOW).board;
     board = applyEdits(board, [{ id: "task-3", type: "advance" }], NOW);
     board = applyEdits(board, [{ id: "task-3", type: "advance" }], NOW);
-    expect(board.phases.find(p => p.status === 'active')?.phase ?? null).toBeNull(); // all done
+    expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBeNull(); // all done
     expect(board.phases.every((p) => p.status === "completed")).toBe(true);
   });
 

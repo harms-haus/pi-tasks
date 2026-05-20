@@ -67,9 +67,7 @@ describe("config", () => {
     });
 
     it("returns empty config when phaseCompletionPromptTemplate is not a string", async () => {
-      mockReadFile.mockResolvedValue(
-        JSON.stringify({ phaseCompletionPromptTemplate: 123 }),
-      );
+      mockReadFile.mockResolvedValue(JSON.stringify({ phaseCompletionPromptTemplate: 123 }));
 
       const config = await loadConfig();
 
@@ -78,9 +76,7 @@ describe("config", () => {
 
     it("returns custom config with valid phaseCompletionPromptTemplate", async () => {
       const template = "Phase {phase} complete!";
-      mockReadFile.mockResolvedValue(
-        JSON.stringify({ phaseCompletionPromptTemplate: template }),
-      );
+      mockReadFile.mockResolvedValue(JSON.stringify({ phaseCompletionPromptTemplate: template }));
 
       const config = await loadConfig();
 
@@ -88,9 +84,7 @@ describe("config", () => {
     });
 
     it("caches the config on first load", async () => {
-      mockReadFile.mockResolvedValue(
-        JSON.stringify({ phaseCompletionPromptTemplate: "cached" }),
-      );
+      mockReadFile.mockResolvedValue(JSON.stringify({ phaseCompletionPromptTemplate: "cached" }));
 
       const first = await loadConfig();
       const second = await loadConfig();
@@ -118,10 +112,7 @@ describe("config", () => {
     });
 
     it("replaces multiple {phase} occurrences", () => {
-      const result = resolvePhasePrompt(
-        "Phase {phase} of {phase} is done",
-        3,
-      );
+      const result = resolvePhasePrompt("Phase {phase} of {phase} is done", 3);
       expect(result).toBe("Phase 3 of 3 is done");
     });
 
