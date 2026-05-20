@@ -857,7 +857,11 @@ describe("applyEdits — data", () => {
     const result = applyEdits(
       board,
       [
-        { id: "task-1", type: "data", data: { title: "New Title", prompt: "New Prompt", profile: "new-profile", phase: 3 } },
+        {
+          id: "task-1",
+          type: "data",
+          data: { title: "New Title", prompt: "New Prompt", profile: "new-profile", phase: 3 },
+        },
       ],
       NOW,
     );
