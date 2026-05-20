@@ -1,0 +1,456 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import type { TaskBoardSnapshot } from "../types";
+import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE } from "../types";
+import { createEmptyBoard } from "../engine";
+import {
+  getBoard,
+  setBoard,
+  getBoardRef,
+  incrementAutoContinue,
+  resetAutoContinue,
+  resetState,
+  reconstructState,
+  persistEntries,
+  updateUI,
+} from "../state";
+import { createMockContext, createMockAPI } from "./helpers/mocks";
+
+// ── Helpers ──
+
+/** Build a minimal valid snapshot for testing */
+function makeSampleBoard(overrides: Partial<TaskBoardSnapshot> = {}): TaskBoardSnapshot {
+  const now = new Date().toISOString();
+  return {
+    version: 1,
+    nextTaskId: 3,
+    tasks: [
+      {
+        id: "task-1",
+        title: "Setup project",
+        prompt: "Initialize the project",
+        profile: "coder",
+        phase: 1,
+        dependencies: [],
+        status: "done",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "task-2",
+        title: "Write tests",
+        prompt: "Write comprehensive tests",
+        profile: "tester",
+        phase: 2,
+        dependencies: ["task-1"],
+        status: "ready",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    phases: [
+      { phase: 1, status: "completed", completedAt: now },
+      { phase: 2, status: "active" },
+    ],
+    ...overrides,
+  };
+}
+
+/** Build a branch entry for the mock context */
+function snapshotEntry(data: unknown) {
+  return { type: "custom", customType: CUSTOM_SNAPSHOT_TYPE, data };
+}
+
+function eventEntry(data: unknown) {
+  return { type: "custom", customType: CUSTOM_EVENT_TYPE, data };
+}
+
+// ── Tests ──
+
+describe("state", () => {
+  beforeEach(() => {
+    resetState();
+  });
+
+  // ── reconstructState ──
+
+  describe("reconstructState", () => {
+    it("returns empty board for empty branch", () => {
+      const ctx = createMockContext([]);
+      const board = reconstructState(ctx);
+      expect(board).toEqual(createEmptyBoard());
+    });
+
+    it("finds the latest snapshot in reverse scan", () => {
+      const firstSnapshot = makeSampleBoard({ nextTaskId: 10 });
+      const secondSnapshot = makeSampleBoard({ nextTaskId: 20 });
+
+      const branch = [
+        snapshotEntry(firstSnapshot),
+        eventEntry({ type: "compile_tasks" }),
+        snapshotEntry(secondSnapshot),
+      ];
+
+      const ctx = createMockContext(branch);
+      const board = reconstructState(ctx);
+
+      expect(board.nextTaskId).toBe(20);
+    });
+
+    it("skips entries with wrong customType", () => {
+      const snapshot = makeSampleBoard();
+      const branch = [
+        { type: "custom", customType: "other-event", data: snapshot },
+        { type: "custom", customType: "wrong-type", data: snapshot },
+        snapshotEntry(snapshot),
+      ];
+
+      const ctx = createMockContext(branch);
+      const board = reconstructState(ctx);
+
+      // Should find the snapshot, not the earlier wrong-type entries
+      expect(board.tasks.length).toBe(snapshot.tasks.length);
+    });
+
+    it("skips entries with invalid snapshot data", () => {
+      const validSnapshot = makeSampleBoard();
+      const branch = [
+        snapshotEntry({ version: 2, nextTaskId: 1 }), // wrong version
+        snapshotEntry(null), // null data
+        snapshotEntry(undefined), // undefined data
+        snapshotEntry({}), // missing fields
+        snapshotEntry({ version: 1 }), // missing nextTaskId
+        snapshotEntry(validSnapshot),
+      ];
+
+      const ctx = createMockContext(branch);
+      const board = reconstructState(ctx);
+
+      expect(board.nextTaskId).toBe(validSnapshot.nextTaskId);
+    });
+
+    it("returns empty board when all snapshots are invalid", () => {
+      const branch = [
+        snapshotEntry({ version: 2 }),
+        snapshotEntry(null),
+        snapshotEntry({ bad: "data" }),
+      ];
+
+      const ctx = createMockContext(branch);
+      const board = reconstructState(ctx);
+
+      expect(board).toEqual(createEmptyBoard());
+    });
+
+    it("returns a deep copy (mutations don't affect cached entry)", () => {
+      const snapshot = makeSampleBoard();
+      const branch = [snapshotEntry(snapshot)];
+
+      const ctx = createMockContext(branch);
+      const board = reconstructState(ctx);
+
+      // Mutate the returned board
+      board.nextTaskId = 999;
+      board.tasks.push({
+        id: "task-evil",
+        title: "evil",
+        prompt: "evil",
+        profile: "evil",
+        phase: 1,
+        dependencies: [],
+        status: "draft",
+        createdAt: "",
+        updatedAt: "",
+      });
+
+      // Re-reconstruct: should still get original data
+      const board2 = reconstructState(ctx);
+      expect(board2.nextTaskId).toBe(snapshot.nextTaskId);
+      expect(board2.tasks.length).toBe(snapshot.tasks.length);
+    });
+  });
+
+  // ── setBoard / getBoard ──
+
+  describe("setBoard / getBoard", () => {
+    it("getBoard returns empty board initially", () => {
+      const board = getBoard();
+      expect(board).toEqual(createEmptyBoard());
+    });
+
+    it("setBoard replaces and getBoard returns the new board", () => {
+      const newBoard = makeSampleBoard();
+      setBoard(newBoard);
+
+      const board = getBoard();
+      expect(board).toEqual(newBoard);
+    });
+
+    it("setBoard resets auto-continue counter", () => {
+      // Increment a few times
+      incrementAutoContinue();
+      incrementAutoContinue();
+      incrementAutoContinue();
+
+      // Set board should reset counter
+      setBoard(makeSampleBoard());
+
+      // First increment after reset should be 1
+      const count = incrementAutoContinue();
+      expect(count).toBe(1);
+    });
+
+    it("getBoard returns a deep copy", () => {
+      setBoard(makeSampleBoard());
+      const board1 = getBoard();
+
+      // Mutate the returned copy
+      board1.nextTaskId = 999;
+      board1.tasks[0].title = "MUTATED";
+
+      // Get a fresh copy — should not reflect the mutation
+      const board2 = getBoard();
+      expect(board2.nextTaskId).not.toBe(999);
+      expect(board2.tasks[0].title).not.toBe("MUTATED");
+    });
+
+    it("setBoard stores a deep copy (mutations to original don't affect state)", () => {
+      const original = makeSampleBoard();
+      setBoard(original);
+
+      // Mutate the original
+      original.nextTaskId = 999;
+      original.tasks[0].title = "MUTATED";
+
+      // getBoard should not reflect the mutation
+      const board = getBoard();
+      expect(board.nextTaskId).not.toBe(999);
+      expect(board.tasks[0].title).not.toBe("MUTATED");
+    });
+  });
+
+  // ── getBoardRef ──
+
+  describe("getBoardRef", () => {
+    it("returns the same reference (no clone)", () => {
+      setBoard(makeSampleBoard());
+      const ref1 = getBoardRef();
+      const ref2 = getBoardRef();
+      expect(ref1).toBe(ref2);
+    });
+  });
+
+  // ── persistEntries ──
+
+  describe("persistEntries", () => {
+    it("calls appendEntry twice with correct types and data", () => {
+      const { api, appendEntry } = createMockAPI();
+      const event = { type: "write_tasks", tasks: [] };
+      const snapshot = makeSampleBoard();
+
+      persistEntries(api, event, snapshot);
+
+      expect(appendEntry).toHaveBeenCalledTimes(2);
+      expect(appendEntry).toHaveBeenNthCalledWith(1, CUSTOM_EVENT_TYPE, event);
+      expect(appendEntry).toHaveBeenNthCalledWith(2, CUSTOM_SNAPSHOT_TYPE, expect.any(Object));
+    });
+
+    it("passes a deep copy of the snapshot (not the original reference)", () => {
+      const { api, appendEntry } = createMockAPI();
+      const snapshot = makeSampleBoard();
+
+      persistEntries(api, { type: "clear_tasks" }, snapshot);
+
+      const passedSnapshot = appendEntry.mock.calls[1][1] as TaskBoardSnapshot;
+      // Should be structurally equal but not the same reference
+      expect(passedSnapshot).toEqual(snapshot);
+      expect(passedSnapshot).not.toBe(snapshot);
+    });
+  });
+
+  // ── updateUI ──
+
+  describe("updateUI", () => {
+    it("clears both status keys when board is empty", () => {
+      const ctx = createMockContext([]);
+      const emptyBoard = createEmptyBoard();
+
+      updateUI(ctx, emptyBoard);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", undefined);
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+    });
+
+    it("shows phase label and done count", () => {
+      const ctx = createMockContext([]);
+      const board = makeSampleBoard(); // Phase 2 active, 1 done / 2 total
+
+      updateUI(ctx, board);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "Phase 2 · 1/2 done");
+    });
+
+    it("shows active items for implementing/reviewing tasks", () => {
+      const ctx = createMockContext([]);
+      const now = new Date().toISOString();
+      const board: TaskBoardSnapshot = {
+        version: 1,
+        nextTaskId: 3,
+        tasks: [
+          {
+            id: "task-1",
+            title: "Build feature",
+            prompt: "Build it",
+            profile: "coder",
+            phase: 1,
+            dependencies: [],
+            status: "implementing",
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: "task-2",
+            title: "Review feature",
+            prompt: "Review it",
+            profile: "reviewer",
+            phase: 1,
+            dependencies: ["task-1"],
+            status: "reviewing",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        phases: [{ phase: 1, status: "active" }],
+      };
+
+      updateUI(ctx, board);
+
+      // Should set the active lines
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith(
+        "phased-tasks-active",
+        "[task-1] Build feature\n[task-2] Review feature",
+      );
+    });
+
+    it("shows done state when all tasks are terminal", () => {
+      const ctx = createMockContext([]);
+      const now = new Date().toISOString();
+      const board: TaskBoardSnapshot = {
+        version: 1,
+        nextTaskId: 3,
+        tasks: [
+          {
+            id: "task-1",
+            title: "Done task",
+            prompt: "Done",
+            profile: "coder",
+            phase: 1,
+            dependencies: [],
+            status: "done",
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: "task-2",
+            title: "Abandoned task",
+            prompt: "Abandoned",
+            profile: "coder",
+            phase: 1,
+            dependencies: [],
+            status: "abandoned",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        phases: [{ phase: 1, status: "completed", completedAt: now }],
+      };
+
+      updateUI(ctx, board);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "✓ All tasks resolved (2)");
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+    });
+
+    it("is a no-op when hasUI is false", () => {
+      const ctx = createMockContext([]);
+      (ctx as { hasUI: boolean }).hasUI = false;
+
+      updateUI(ctx, makeSampleBoard());
+
+      expect(ctx.ui.setStatus).not.toHaveBeenCalled();
+    });
+
+    it("shows 'No active phase' when no active phase exists but tasks remain", () => {
+      const ctx = createMockContext([]);
+      const now = new Date().toISOString();
+      const board: TaskBoardSnapshot = {
+        version: 1,
+        nextTaskId: 2,
+        tasks: [
+          {
+            id: "task-1",
+            title: "Draft task",
+            prompt: "Draft",
+            profile: "coder",
+            phase: 1,
+            dependencies: [],
+            status: "draft",
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        phases: [], // No phases computed yet
+      };
+
+      updateUI(ctx, board);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "No active phase · 0/1 done");
+    });
+
+    it("clears active status when no implementing/reviewing tasks", () => {
+      const ctx = createMockContext([]);
+      const board = makeSampleBoard(); // ready + done, no implementing/reviewing
+
+      updateUI(ctx, board);
+
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+    });
+  });
+
+  // ── Auto-continue counter ──
+
+  describe("auto-continue counter", () => {
+    it("incrementAutoContinue accumulates", () => {
+      expect(incrementAutoContinue()).toBe(1);
+      expect(incrementAutoContinue()).toBe(2);
+      expect(incrementAutoContinue()).toBe(3);
+    });
+
+    it("setBoard resets counter", () => {
+      incrementAutoContinue();
+      incrementAutoContinue();
+      expect(incrementAutoContinue()).toBe(3);
+
+      setBoard(makeSampleBoard());
+
+      expect(incrementAutoContinue()).toBe(1);
+    });
+
+    it("resetAutoContinue resets counter", () => {
+      incrementAutoContinue();
+      incrementAutoContinue();
+
+      resetAutoContinue();
+
+      expect(incrementAutoContinue()).toBe(1);
+    });
+
+    it("resetState resets counter", () => {
+      incrementAutoContinue();
+      incrementAutoContinue();
+
+      resetState();
+
+      expect(incrementAutoContinue()).toBe(1);
+    });
+  });
+});

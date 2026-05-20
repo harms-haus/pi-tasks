@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.js
+*.d.ts
+!.prettierrc
+!.eslintrc.*
+!eslint.config.js
+.bifrost.yaml
