@@ -1,13 +1,19 @@
-import { StringEnum } from "@earendil-works/pi-ai";
 import { Text } from "@earendil-works/pi-tui";
-import { Type } from "typebox";
 import type {
   ToolDefinition,
   ExtensionAPI,
   AgentToolResult,
   Theme,
 } from "@earendil-works/pi-coding-agent";
-import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE } from "./types";
+import {
+  WriteTasksParams,
+  EditTasksParams,
+  CompileTasksParams,
+  ClearTasksParams,
+  GetReadyTasksParams,
+} from "./schemas";
+import { cloneBoard } from "./validation";
+import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE, TERMINAL_STATUSES } from "./types";
 import type { TaskBoardSnapshot, TaskEdit, TaskWorkflowEvent } from "./types";
 import {
   writeTasks,
@@ -20,60 +26,6 @@ import {
 import { getBoard, setBoard, persistEntries, updateUI } from "./state";
 import { loadConfig, resolvePhasePrompt } from "./config";
 import { formatBoardText, formatSummaryLine, formatAllDoneMessage } from "./formatting";
-
-// ── Schemas ──
-
-const WriteTasksParams = Type.Object({
-  tasks: Type.Array(
-    Type.Object({
-      title: Type.String({ description: "Short task title" }),
-      prompt: Type.String({ description: "Detailed implementation instructions" }),
-      profile: Type.String({ description: "Agent profile name for task delegation" }),
-      phase: Type.Integer({ description: "Phase number (>= 1)", minimum: 1 }),
-    }),
-    { description: "Tasks to add to the board" },
-  ),
-});
-
-const EditTasksParams = Type.Object({
-  tasks: Type.Array(
-    Type.Union([
-      Type.Object({
-        id: Type.String(),
-        type: StringEnum(["data"]),
-        data: Type.Object({
-          title: Type.Optional(Type.String()),
-          prompt: Type.Optional(Type.String()),
-          profile: Type.Optional(Type.String()),
-          phase: Type.Optional(Type.Integer()),
-        }),
-      }),
-      Type.Object({
-        id: Type.String(),
-        type: StringEnum(["blockers"]),
-        data: Type.Object({
-          dependencies: Type.Array(Type.String()),
-        }),
-      }),
-      Type.Object({
-        id: Type.String(),
-        type: StringEnum(["advance"]),
-      }),
-      Type.Object({
-        id: Type.String(),
-        type: StringEnum(["abandon"]),
-      }),
-    ]),
-  ),
-});
-
-const CompileTasksParams = Type.Object({});
-
-const ClearTasksParams = Type.Object({});
-
-const GetReadyTasksParams = Type.Object({
-  count: Type.Integer({ description: "Number of tasks to claim (>= 1)", minimum: 1 }),
-});
 
 // ── Details Type ──
 
@@ -104,8 +56,8 @@ function makeErrorResult(
   };
 }
 
-/** Detect phases that just completed (before vs after) and resolve prompt template. */
-async function detectPhaseCompletion(
+/** Check for phases that just completed (before vs after) and set pending phase prompt. */
+async function checkAndSetPhaseCompletion(
   beforePhases: TaskBoardSnapshot["phases"],
   afterBoard: TaskBoardSnapshot,
 ): Promise<void> {
@@ -264,7 +216,7 @@ export function createEditTasksTool(
         const newBoard = applyEdits(board, edits, now);
 
         // Detect phase completion and set pending prompt
-        await detectPhaseCompletion(beforePhases, newBoard);
+        await checkAndSetPhaseCompletion(beforePhases, newBoard);
 
         setBoard(newBoard);
 
@@ -298,7 +250,7 @@ export function createEditTasksTool(
           }
           pi.appendEntry(CUSTOM_EVENT_TYPE, event);
         }
-        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, JSON.parse(JSON.stringify(newBoard)));
+        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(newBoard));
         updateUI(ctx, newBoard);
 
         const summary = formatSummaryLine(newBoard);
@@ -349,7 +301,7 @@ export function createCompileTasksTool(
         const newBoard = compileBoard(board, now);
 
         // Detect phase completion and set pending prompt
-        await detectPhaseCompletion(beforePhases, newBoard);
+        await checkAndSetPhaseCompletion(beforePhases, newBoard);
 
         setBoard(newBoard);
 
@@ -435,31 +387,15 @@ export function createGetReadyTasksTool(
         if (result.claimed.length === 0) {
           // Determine why no tasks were claimed
           const allTerminal = board.tasks.every(
-            (t) => t.status === "done" || t.status === "abandoned",
+            (t) => TERMINAL_STATUSES.has(t.status),
           );
           if (allTerminal && board.tasks.length > 0) {
             return makeErrorResult(formatAllDoneMessage(board), board);
           }
 
-          const hasActive = board.tasks.some(
-            (t) => t.status === "implementing" || t.status === "reviewing",
-          );
-          if (hasActive) {
-            const activeTasks = board.tasks.filter(
-              (t) => t.status === "implementing" || t.status === "reviewing",
-            );
-            const activeList = activeTasks
-              .map((t) => `[${t.id}] ${t.title} (${t.status})`)
-              .join("\n");
-            return makeErrorResult(
-              `Cannot claim tasks while tasks are in progress:\n${activeList}\n\nAdvance or complete active tasks first using edit_tasks with type 'advance'.`,
-              board,
-            );
-          }
-
           // Deadlock: non-terminal tasks but none actionable
           const nonTerminal = board.tasks.filter(
-            (t) => t.status !== "done" && t.status !== "abandoned",
+            (t) => !TERMINAL_STATUSES.has(t.status),
           );
           if (nonTerminal.length > 0) {
             const blockedList = nonTerminal

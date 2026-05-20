@@ -328,7 +328,8 @@ src/
 ├── types.ts          # Type definitions, status constants, event types, edit types
 ├── engine.ts         # Pure functions: board creation, write/compile/edit/claim logic, phase computation
 ├── state.ts          # Mutable board state, session reconstruction, persistence helpers, UI sync
-├── tools.ts          # Tool definitions: schemas, execute, renderCall, renderResult
+├── schemas.ts        # TypeBox schemas for tool parameters (extracted from tools.ts)
+├── tools.ts          # Tool definitions: execute, renderCall, renderResult
 ├── events.ts         # Event handlers: session_start, agent_end, before_agent_start, input
 ├── config.ts         # Configuration loading from .pi/phased-tasks.json
 ├── formatting.ts     # Plain-text formatting for board display, summaries, and prompts

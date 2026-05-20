@@ -1,4 +1,4 @@
-import type { TaskBoardSnapshot, TaskRecord, TaskStatus, TaskEdit } from "./types";
+import type { TaskBoardSnapshot, TaskRecord, TaskEdit } from "./types";
 import { MAX_TASKS, ACTIVE_STATUSES, TERMINAL_STATUSES } from "./types";
 import {
   isNonEmptyString,
@@ -429,34 +429,4 @@ export function claimReadyTasks(
 
 // ── Query Functions ──
 
-export function getStatusCounts(board: TaskBoardSnapshot): Record<TaskStatus, number> {
-  const counts: Record<TaskStatus, number> = {
-    draft: 0,
-    configured: 0,
-    ready: 0,
-    implementing: 0,
-    reviewing: 0,
-    done: 0,
-    abandoned: 0,
-  };
-  for (const t of board.tasks) {
-    counts[t.status]++;
-  }
-  return counts;
-}
-
-export function getActivePhase(board: TaskBoardSnapshot): number | null {
-  const phase = board.phases.find((p) => p.status === "active");
-  return phase ? phase.phase : null;
-}
-
-export function getReadyTasks(board: TaskBoardSnapshot): TaskRecord[] {
-  return board.tasks
-    .filter((t) => t.status === "ready")
-    .sort((a, b) => {
-      if (a.phase !== b.phase) return a.phase - b.phase;
-      return board.tasks.indexOf(a) - board.tasks.indexOf(b);
-    });
-}
-
-export { hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
+export { hasActionableTasks, hasBlockedNonTerminalTasks, getStatusCounts } from "./validation";

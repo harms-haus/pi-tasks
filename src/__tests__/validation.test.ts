@@ -3,13 +3,10 @@ import type { TaskBoardSnapshot, TaskRecord } from "../types";
 import {
   isNonEmptyString,
   isValidPhase,
-  isValidTaskRecord,
   hasSelfDependency,
   hasDuplicateDependencies,
   findMissingDependencies,
   detectCycle,
-  hasActiveTasks,
-  hasNonTerminalTasks,
   hasActionableTasks,
   hasBlockedNonTerminalTasks,
   isValidSnapshot,
@@ -121,88 +118,7 @@ describe("isValidPhase", () => {
 });
 
 // ═══════════════════════════════════════════
-// 3. isValidTaskRecord
-// ═══════════════════════════════════════════
-
-describe("isValidTaskRecord", () => {
-  it("accepts a valid task record", () => {
-    expect(isValidTaskRecord(makeTask())).toBe(true);
-  });
-
-  it("accepts a valid record with all statuses", () => {
-    const statuses: Array<TaskRecord["status"]> = [
-      "draft",
-      "configured",
-      "ready",
-      "implementing",
-      "reviewing",
-      "done",
-      "abandoned",
-    ];
-    for (const status of statuses) {
-      expect(isValidTaskRecord(makeTask({ status }))).toBe(true);
-    }
-  });
-
-  it("accepts a record with dependencies", () => {
-    expect(isValidTaskRecord(makeTask({ dependencies: ["task-2", "task-3"] }))).toBe(true);
-  });
-
-  it("rejects null", () => {
-    expect(isValidTaskRecord(null)).toBe(false);
-  });
-
-  it("rejects non-objects", () => {
-    expect(isValidTaskRecord("string")).toBe(false);
-    expect(isValidTaskRecord(123)).toBe(false);
-    expect(isValidTaskRecord(true)).toBe(false);
-    expect(isValidTaskRecord(undefined)).toBe(false);
-  });
-
-  it("rejects when id is not a string", () => {
-    expect(isValidTaskRecord(makeTask({ id: 123 as unknown as string }))).toBe(false);
-  });
-
-  it("rejects when title is empty", () => {
-    expect(isValidTaskRecord(makeTask({ title: "" }))).toBe(false);
-  });
-
-  it("rejects when prompt is empty", () => {
-    expect(isValidTaskRecord(makeTask({ prompt: "" }))).toBe(false);
-  });
-
-  it("rejects when profile is empty", () => {
-    expect(isValidTaskRecord(makeTask({ profile: "" }))).toBe(false);
-  });
-
-  it("rejects when phase is not a positive integer", () => {
-    expect(isValidTaskRecord(makeTask({ phase: 0 }))).toBe(false);
-    expect(isValidTaskRecord(makeTask({ phase: -1 }))).toBe(false);
-    expect(isValidTaskRecord(makeTask({ phase: 1.5 }))).toBe(false);
-  });
-
-  it("rejects when dependencies is not an array of strings", () => {
-    expect(isValidTaskRecord(makeTask({ dependencies: [123] as unknown as string[] }))).toBe(false);
-    expect(isValidTaskRecord(makeTask({ dependencies: "task-2" as unknown as string[] }))).toBe(
-      false,
-    );
-  });
-
-  it("rejects when status is invalid", () => {
-    expect(isValidTaskRecord(makeTask({ status: "unknown" as TaskRecord["status"] }))).toBe(false);
-  });
-
-  it("rejects when createdAt is not a string", () => {
-    expect(isValidTaskRecord(makeTask({ createdAt: 123 as unknown as string }))).toBe(false);
-  });
-
-  it("rejects when updatedAt is not a string", () => {
-    expect(isValidTaskRecord(makeTask({ updatedAt: 123 as unknown as string }))).toBe(false);
-  });
-});
-
-// ═══════════════════════════════════════════
-// 4. hasSelfDependency
+// 3. hasSelfDependency
 // ═══════════════════════════════════════════
 
 describe("hasSelfDependency", () => {
@@ -219,7 +135,7 @@ describe("hasSelfDependency", () => {
 });
 
 // ═══════════════════════════════════════════
-// 5. hasDuplicateDependencies
+// 4. hasDuplicateDependencies
 // ═══════════════════════════════════════════
 
 describe("hasDuplicateDependencies", () => {
@@ -236,7 +152,7 @@ describe("hasDuplicateDependencies", () => {
 });
 
 // ═══════════════════════════════════════════
-// 6. findMissingDependencies
+// 5. findMissingDependencies
 // ═══════════════════════════════════════════
 
 describe("findMissingDependencies", () => {
@@ -255,7 +171,7 @@ describe("findMissingDependencies", () => {
 });
 
 // ═══════════════════════════════════════════
-// 7. detectCycle
+// 6. detectCycle
 // ═══════════════════════════════════════════
 
 describe("detectCycle", () => {
@@ -330,70 +246,8 @@ describe("detectCycle", () => {
 });
 
 // ═══════════════════════════════════════════
-// 8. Board state checks
+// 7. Board state checks
 // ═══════════════════════════════════════════
-
-describe("hasActiveTasks", () => {
-  it("returns false for empty board", () => {
-    expect(hasActiveTasks(makeBoard())).toBe(false);
-  });
-
-  it("returns false when no tasks are implementing/reviewing", () => {
-    const board = makeBoard({
-      tasks: [
-        makeTask({ status: "draft" }),
-        makeTask({ status: "configured" }),
-        makeTask({ status: "ready" }),
-        makeTask({ status: "done" }),
-        makeTask({ status: "abandoned" }),
-      ],
-    });
-    expect(hasActiveTasks(board)).toBe(false);
-  });
-
-  it("returns true when a task is implementing", () => {
-    const board = makeBoard({
-      tasks: [makeTask({ status: "draft" }), makeTask({ id: "task-2", status: "implementing" })],
-    });
-    expect(hasActiveTasks(board)).toBe(true);
-  });
-
-  it("returns true when a task is reviewing", () => {
-    const board = makeBoard({
-      tasks: [makeTask({ status: "done" }), makeTask({ id: "task-2", status: "reviewing" })],
-    });
-    expect(hasActiveTasks(board)).toBe(true);
-  });
-});
-
-describe("hasNonTerminalTasks", () => {
-  it("returns false for empty board", () => {
-    expect(hasNonTerminalTasks(makeBoard())).toBe(false);
-  });
-
-  it("returns false when all tasks are terminal (done/abandoned)", () => {
-    const board = makeBoard({
-      tasks: [makeTask({ status: "done" }), makeTask({ id: "task-2", status: "abandoned" })],
-    });
-    expect(hasNonTerminalTasks(board)).toBe(false);
-  });
-
-  it("returns true when any task is non-terminal", () => {
-    const nonTerminalStatuses: Array<TaskRecord["status"]> = [
-      "draft",
-      "configured",
-      "ready",
-      "implementing",
-      "reviewing",
-    ];
-    for (const status of nonTerminalStatuses) {
-      const board = makeBoard({
-        tasks: [makeTask({ status: "done" }), makeTask({ id: "task-2", status })],
-      });
-      expect(hasNonTerminalTasks(board)).toBe(true);
-    }
-  });
-});
 
 describe("hasActionableTasks", () => {
   it("returns false for empty board", () => {
@@ -472,7 +326,7 @@ describe("hasBlockedNonTerminalTasks", () => {
 });
 
 // ═══════════════════════════════════════════
-// 9. isValidSnapshot
+// 8. isValidSnapshot
 // ═══════════════════════════════════════════
 
 describe("isValidSnapshot", () => {
@@ -538,7 +392,7 @@ describe("isValidSnapshot", () => {
 });
 
 // ═══════════════════════════════════════════
-// 10. cloneBoard
+// 9. cloneBoard
 // ═══════════════════════════════════════════
 
 describe("cloneBoard", () => {

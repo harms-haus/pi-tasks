@@ -167,17 +167,7 @@ describe("session_tree handler", () => {
     expect(ctx.ui.setStatus).toHaveBeenCalled();
   });
 
-  it("calls resetConfig", () => {
-    // Import resetConfig spy — we'll verify indirectly by checking that
-    // session_tree handler doesn't crash with the config module
-    const ctx = createMockContext([]);
 
-    const handler = getHandler(mockAPI, "session_tree");
-    handler({}, ctx);
-
-    // If it completes without error, resetConfig was called successfully
-    expect(true).toBe(true);
-  });
 });
 
 // ═══════════════════════════════════════════

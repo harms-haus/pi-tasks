@@ -1,7 +1,6 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { TaskBoardSnapshot } from "./types";
-import { MAX_AUTO_CONTINUE } from "./types";
-import { hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
+import { CUSTOM_SNAPSHOT_TYPE, MAX_AUTO_CONTINUE } from "./types";
+import { cloneBoard, hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
 import { getBoardRef, setBoard, reconstructState, updateUI, incrementAutoContinue } from "./state";
 import { resetConfig } from "./config";
 import { formatHiddenContext, formatContinuePrompt } from "./formatting";
@@ -88,6 +87,7 @@ function scheduleAutoContinue(pi: ExtensionAPI, ctx: ExtensionContext, prompt: s
       { placement: "aboveEditor" },
     );
   } else {
+    if (activeTimeout !== null) clearTimeout(activeTimeout);
     activeTimeout = setTimeout(() => {
       activeTimeout = null;
       trySendAutoContinue(pi, prompt);
@@ -155,9 +155,10 @@ export function registerEventHandlers(pi: ExtensionAPI): void {
       if (board.pendingPhasePrompt) {
         phasePrompt = board.pendingPhasePrompt.message + "\n\n";
         // Clear the prompt — will be persisted on next mutation
-        const updated = JSON.parse(JSON.stringify(board)) as TaskBoardSnapshot;
+        const updated = cloneBoard(board);
         delete updated.pendingPhasePrompt;
         setBoard(updated);
+        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, updated);
       }
       const prompt = phasePrompt + formatContinuePrompt(board);
       scheduleAutoContinue(pi, ctx, prompt);

@@ -1,5 +1,39 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+- Fixed double auto-continue firing in headless mode due to missing `clearTimeout` on existing timer
+- Fixed `pendingPhasePrompt` not being cleared in session history, causing stale phase prompts on session restore
+
+### Changed
+
+- Consolidated all `cloneBoard()` usage to a single helper, eliminating scattered deep-clone patterns
+- Moved `getStatusCounts` from `engine.ts` to `validation.ts` to colocate with other status-related logic
+- Replaced all magic status-string literals with the `TERMINAL_STATUSES` constant for consistency
+- Renamed `detectPhaseCompletion` → `checkAndSetPhaseCompletion` to better reflect its side-effect nature
+
+### Removed
+
+- Removed dead code: `isValidTaskRecord`, `getActivePhase`, `getReadyTasks` (unexported), `resetAutoContinue`, and several internal helpers that were never called externally
+- Removed duplicate and low-value test cases
+
+### Refactored
+
+- Extracted all TypeBox schemas from `engine.ts` into dedicated `schemas.ts` module
+- Split monolithic engine.test.ts into 4 focused engine test files (engine-compile.test.ts, engine-edits.test.ts, engine-queries.test.ts, engine-write.test.ts). Added new test files for renderers.ts, index.ts, and config.ts coverage
+
+### CI
+
+- Updated CI pipeline to enforce coverage thresholds (statement and branch)
+
+### Stats
+
+- **Tests:** 278 (was 289 — net reduction from dead-code removal, offset by new coverage tests)
+- **Statement coverage:** 95.69% (was 92.1%)
+- **Branch coverage:** 93.14%
+
 ## 0.1.0 (2025-05-20)
 
 ### Added

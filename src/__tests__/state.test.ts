@@ -7,7 +7,6 @@ import {
   setBoard,
   getBoardRef,
   incrementAutoContinue,
-  resetAutoContinue,
   resetState,
   reconstructState,
   persistEntries,
@@ -431,15 +430,6 @@ describe("state", () => {
       expect(incrementAutoContinue()).toBe(3);
 
       setBoard(makeSampleBoard());
-
-      expect(incrementAutoContinue()).toBe(1);
-    });
-
-    it("resetAutoContinue resets counter", () => {
-      incrementAutoContinue();
-      incrementAutoContinue();
-
-      resetAutoContinue();
 
       expect(incrementAutoContinue()).toBe(1);
     });

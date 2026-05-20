@@ -2,7 +2,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import type { TaskBoardSnapshot } from "./types";
 import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE } from "./types";
 import { createEmptyBoard } from "./engine";
-import { isValidSnapshot } from "./validation";
+import { isValidSnapshot, cloneBoard, getStatusCounts } from "./validation";
 
 // ── Mutable State ──
 
@@ -13,12 +13,12 @@ let autoContinueCount = 0;
 
 /** Returns a deep copy of the current board. */
 export function getBoard(): TaskBoardSnapshot {
-  return JSON.parse(JSON.stringify(board)) as TaskBoardSnapshot;
+  return cloneBoard(board);
 }
 
 /** Replaces the board state. Resets auto-continue counter. */
 export function setBoard(newBoard: TaskBoardSnapshot): void {
-  board = JSON.parse(JSON.stringify(newBoard)) as TaskBoardSnapshot;
+  board = cloneBoard(newBoard);
   autoContinueCount = 0;
 }
 
@@ -30,11 +30,6 @@ export function getBoardRef(): Readonly<TaskBoardSnapshot> {
 /** Increments and returns the auto-continue counter. */
 export function incrementAutoContinue(): number {
   return ++autoContinueCount;
-}
-
-/** Resets the auto-continue counter. */
-export function resetAutoContinue(): void {
-  autoContinueCount = 0;
 }
 
 /** Resets all mutable state. For testing only. */
@@ -59,7 +54,7 @@ export function reconstructState(ctx: ExtensionContext): TaskBoardSnapshot {
     if ((entry as { customType?: string }).customType !== CUSTOM_SNAPSHOT_TYPE) continue;
     const data = (entry as { data?: unknown }).data;
     if (data && isValidSnapshot(data)) {
-      return JSON.parse(JSON.stringify(data)) as TaskBoardSnapshot;
+      return cloneBoard(data);
     }
   }
 
@@ -75,7 +70,7 @@ export function persistEntries(
   snapshot: TaskBoardSnapshot,
 ): void {
   pi.appendEntry(CUSTOM_EVENT_TYPE, event);
-  pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, JSON.parse(JSON.stringify(snapshot)));
+  pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(snapshot));
 }
 
 // ── UI Sync ──
@@ -90,12 +85,9 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
     return;
   }
 
-  const counts: Record<string, number> = {};
-  for (const t of snapshot.tasks) {
-    counts[t.status] = (counts[t.status] || 0) + 1;
-  }
+  const counts = getStatusCounts(snapshot);
 
-  const done = (counts["done"] || 0) + (counts["abandoned"] || 0);
+  const done = counts.done + counts.abandoned;
   const total = snapshot.tasks.length;
 
   const activePhase = snapshot.phases.find((p) => p.status === "active");

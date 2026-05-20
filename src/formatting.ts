@@ -1,15 +1,16 @@
 import type { TaskBoardSnapshot, TaskRecord, TaskStatus } from "./types";
 import { STATUS_ICONS } from "./types";
+import { getStatusCounts } from "./validation";
 
 // ── Plain-Text Formatting (for LLM tool output) ──
 
 /** Returns the plain-text icon for a task status. */
-export function getStatusIcon(status: TaskStatus): string {
+function getStatusIcon(status: TaskStatus): string {
   return STATUS_ICONS[status];
 }
 
 /** Format a single task as a plain-text line. */
-export function formatTaskLine(task: TaskRecord): string {
+function formatTaskLine(task: TaskRecord): string {
   return `${getStatusIcon(task.status)} [${task.id}] Phase ${task.phase} · ${task.title}`;
 }
 
@@ -37,13 +38,10 @@ export function formatBoardText(board: TaskBoardSnapshot): string {
   }
 
   // Summary line
-  const counts: Partial<Record<TaskStatus, number>> = {};
-  for (const t of board.tasks) {
-    counts[t.status] = (counts[t.status] || 0) + 1;
-  }
+  const counts = getStatusCounts(board);
   const parts: string[] = [];
   for (const [status, count] of Object.entries(counts)) {
-    if (count && count > 0) parts.push(`${count} ${status}`);
+    if (count > 0) parts.push(`${count} ${status}`);
   }
   lines.push(`Summary: ${parts.join(", ")}`);
 
@@ -68,12 +66,10 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   lines.push(`Active Phase: ${activePhase ? activePhase.phase : "none"}`);
 
   // Counts by status
-  const counts: Partial<Record<TaskStatus, number>> = {};
-  for (const t of board.tasks) {
-    counts[t.status] = (counts[t.status] || 0) + 1;
-  }
+  const counts = getStatusCounts(board);
   lines.push(
     `Status: ${Object.entries(counts)
+      .filter(([, c]) => c > 0)
       .map(([s, c]) => `${c} ${s}`)
       .join(", ")}`,
   );
