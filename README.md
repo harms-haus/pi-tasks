@@ -336,6 +336,31 @@ The extension persists two types of custom entries to the session tree:
 
 On `session_start` and `session_tree` events, the board is reconstructed by scanning the session branch in reverse for the latest valid snapshot.
 
+## Status Bar Integration
+
+pi-tasks integrates with [pi-powerline](https://github.com/harms-haus/pi-powerline) to display task progress in the status bar above the composer. No additional configuration is needed — the integration is automatic when both extensions are active.
+
+### What you'll see
+
+The status bar shows two elements, updated after every board mutation:
+
+- **Progress line** — `{done}/{total} - Phase {n}`, where `done` counts both completed and abandoned tasks. Displays `No active phase` when tasks exist but no phase is active. When the board is empty, both status slots are removed entirely.
+- **Active tasks** — tasks in `implementing` or `reviewing` status are listed above the progress line, one per line: `[t-1.1] Set up database schema`
+
+Example status bar with active tasks:
+
+```
+[t-1.1] Set up database schema
+[t-1.2] Create API endpoints
+2/6 - Phase 1
+```
+
+When the board is cleared, both status slots are removed from the bar.
+
+### Coexistence with pi-til-done
+
+pi-tasks publishes to the same `til-done` / `til-done-active` status slots used by [pi-til-done](https://github.com/harms-haus/pi-til-done). When both extensions are active, whichever extension last updates the slot wins the display — there is no merging or deduplication.
+
 ## Architecture
 
 ```

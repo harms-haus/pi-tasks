@@ -108,8 +108,8 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   if (!ctx.hasUI) return;
 
   if (snapshot.tasks.length === 0) {
-    ctx.ui.setStatus("phased-tasks", undefined);
-    ctx.ui.setStatus("phased-tasks-active", undefined);
+    ctx.ui.setStatus("til-done", undefined);
+    ctx.ui.setStatus("til-done-active", undefined);
     return;
   }
 
@@ -121,13 +121,7 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   const activePhase = snapshot.phases.find((p) => p.status === "active");
   const phaseLabel = activePhase ? `Phase ${activePhase.phase}` : "No active phase";
 
-  if (done === total) {
-    ctx.ui.setStatus("phased-tasks", `✓ All tasks resolved (${total})`);
-    ctx.ui.setStatus("phased-tasks-active", undefined);
-    return;
-  }
-
-  ctx.ui.setStatus("phased-tasks", `${phaseLabel} · ${done}/${total} done`);
+  ctx.ui.setStatus("til-done", `${done}/${total} - ${phaseLabel}`);
 
   const activeLines: string[] = [];
   for (const t of snapshot.tasks) {
@@ -136,7 +130,7 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
     }
   }
   ctx.ui.setStatus(
-    "phased-tasks-active",
+    "til-done-active",
     activeLines.length > 0 ? activeLines.join("\n") : undefined,
   );
 }

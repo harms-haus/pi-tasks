@@ -287,8 +287,8 @@ describe("state", () => {
 
       updateUI(ctx, emptyBoard);
 
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", undefined);
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done", undefined);
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done-active", undefined);
     });
 
     it("shows phase label and done count", () => {
@@ -297,7 +297,7 @@ describe("state", () => {
 
       updateUI(ctx, board);
 
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "Phase 2 · 1/2 done");
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done", "1/2 - Phase 2");
     });
 
     it("shows active items for implementing/reviewing tasks", () => {
@@ -336,7 +336,7 @@ describe("state", () => {
 
       // Should set the active lines
       expect(ctx.ui.setStatus).toHaveBeenCalledWith(
-        "phased-tasks-active",
+        "til-done-active",
         "[t-1.1] Build feature\n[t-1.2] Review feature",
       );
     });
@@ -375,8 +375,8 @@ describe("state", () => {
 
       updateUI(ctx, board);
 
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "✓ All tasks resolved (2)");
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done", "2/2 - No active phase");
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done-active", undefined);
     });
 
     it("is a no-op when hasUI is false", () => {
@@ -411,7 +411,7 @@ describe("state", () => {
 
       updateUI(ctx, board);
 
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks", "No active phase · 0/1 done");
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done", "0/1 - No active phase");
     });
 
     it("clears active status when no implementing/reviewing tasks", () => {
@@ -420,7 +420,7 @@ describe("state", () => {
 
       updateUI(ctx, board);
 
-      expect(ctx.ui.setStatus).toHaveBeenCalledWith("phased-tasks-active", undefined);
+      expect(ctx.ui.setStatus).toHaveBeenCalledWith("til-done-active", undefined);
     });
   });
 
