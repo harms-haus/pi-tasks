@@ -38,7 +38,9 @@ function makeBoardWithReadyTask(): TaskBoardSnapshot {
     board,
     {
       mode: "replace",
-      phases: [{ title: "Phase 1", tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }] }],
+      phases: [
+        { title: "Phase 1", tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }] },
+      ],
     },
     NOW,
   );

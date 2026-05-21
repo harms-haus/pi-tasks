@@ -161,9 +161,7 @@ describe("writeTasks", () => {
   });
 
   it("replace mode rejects when active tasks exist", () => {
-    const board = makeBoardWithStatuses([
-      { title: "A", phase: 1, status: "implementing" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "A", phase: 1, status: "implementing" }]);
     expect(() =>
       writeTasks(
         board,
@@ -472,9 +470,7 @@ describe("writeTasks", () => {
       full,
       {
         mode: "append",
-        phases: [
-          { title: "Phase 2", tasks: [{ title: "Exact 100", prompt: "P", profile: "c" }] },
-        ],
+        phases: [{ title: "Phase 2", tasks: [{ title: "Exact 100", prompt: "P", profile: "c" }] }],
       },
       NOW,
     );
@@ -490,9 +486,7 @@ describe("writeTasks", () => {
       board,
       {
         mode: "replace",
-        phases: [
-          { title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "c" }] },
-        ],
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "c" }] }],
       },
       NOW,
     );

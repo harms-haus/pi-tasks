@@ -206,17 +206,26 @@ describe("write_tasks", () => {
       prompt: "P",
       profile: "c",
     }));
-    await callExecute(tool, { mode: "replace", phases: [{ title: "Phase 1", tasks: tasks99 }] }, ctx);
+    await callExecute(
+      tool,
+      { mode: "replace", phases: [{ title: "Phase 1", tasks: tasks99 }] },
+      ctx,
+    );
 
     // Try to add 2 more → exceed 100
     const result = await callExecute(
       tool,
       {
         mode: "append",
-        phases: [{ title: "Phase 2", tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
-        ] }],
+        phases: [
+          {
+            title: "Phase 2",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
+        ],
       },
       ctx,
     );
@@ -274,7 +283,10 @@ describe("write_tasks", () => {
     const tool = createWriteTasksTool(api);
     const theme = createMockTheme();
     const rendered = (tool as any).renderCall(
-      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
       theme,
     );
     const text = rendered.toString();
@@ -309,10 +321,12 @@ describe("edit_tasks - data", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }],
+          },
+        ],
       },
       ctx,
     );
@@ -343,13 +357,15 @@ describe("edit_tasks - data", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -380,13 +396,15 @@ describe("edit_tasks - data", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -418,10 +436,12 @@ describe("edit_tasks - data", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -468,13 +488,15 @@ describe("edit_tasks - blockers", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -502,10 +524,12 @@ describe("edit_tasks - blockers", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -536,10 +560,12 @@ describe("edit_tasks - blockers", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -570,13 +596,15 @@ describe("edit_tasks - blockers", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -621,7 +649,10 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
@@ -646,13 +677,15 @@ describe("advance_tasks tool", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -692,13 +725,15 @@ describe("advance_tasks tool", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -720,7 +755,10 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
       ctx,
     );
     // t-1.1 is draft (not compiled)
@@ -741,13 +779,15 @@ describe("advance_tasks tool", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -782,7 +822,10 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
@@ -842,10 +885,12 @@ describe("edit_tasks - abandon", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -875,10 +920,12 @@ describe("edit_tasks - abandon", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -910,10 +957,12 @@ describe("edit_tasks - abandon", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -947,10 +996,12 @@ describe("edit_tasks - abandon", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1000,13 +1051,15 @@ describe("edit_tasks - atomicity", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1060,10 +1113,12 @@ describe("compile_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1101,10 +1156,12 @@ describe("compile_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1132,13 +1189,15 @@ describe("compile_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1190,13 +1249,15 @@ describe("clear_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c", phase: 2 },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c", phase: 2 },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1220,10 +1281,12 @@ describe("clear_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1235,10 +1298,12 @@ describe("clear_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "B", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "B", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1274,13 +1339,15 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "Do A", profile: "coder" },
-          { title: "B", prompt: "Do B", profile: "coder" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "Do A", profile: "coder" },
+              { title: "B", prompt: "Do B", profile: "coder" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1308,10 +1375,12 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "Task A", prompt: "Implement feature X", profile: "coder" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "Task A", prompt: "Implement feature X", profile: "coder" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1334,13 +1403,15 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1371,13 +1442,15 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1423,10 +1496,12 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [{ title: "A", prompt: "P", profile: "c" }],
-        }],
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [{ title: "A", prompt: "P", profile: "c" }],
+          },
+        ],
       },
       ctx,
     );
@@ -1467,14 +1542,16 @@ describe("get_ready_tasks", () => {
       writeTool,
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
-          { title: "C", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+              { title: "C", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       ctx,
     );
@@ -1526,13 +1603,15 @@ describe("tool render functions", () => {
     const result = (tool as any).renderCall(
       {
         mode: "replace",
-        phases: [{
-          title: "Phase 1",
-          tasks: [
-          { title: "A", prompt: "P", profile: "c" },
-          { title: "B", prompt: "P", profile: "c" },
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
         ],
-        }],
       },
       theme,
     );

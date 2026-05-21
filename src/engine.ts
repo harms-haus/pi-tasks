@@ -60,10 +60,7 @@ export function writeTasks(
     startPhase = 1;
   } else {
     result = cloneBoard(board);
-    startPhase =
-      result.tasks.length > 0
-        ? Math.max(...result.tasks.map((t) => t.phase)) + 1
-        : 1;
+    startPhase = result.tasks.length > 0 ? Math.max(...result.tasks.map((t) => t.phase)) + 1 : 1;
   }
 
   const totalNewTasks = input.phases.reduce((sum, p) => sum + p.tasks.length, 0);

@@ -164,9 +164,7 @@ export function createWriteTasksTool(
           (sum: number, p: { tasks: unknown[] }) => sum + p.tasks.length,
           0,
         );
-        const newPhaseNumbers = newBoard.phases
-          .slice(-params.phases.length)
-          .map((p) => p.phase);
+        const newPhaseNumbers = newBoard.phases.slice(-params.phases.length).map((p) => p.phase);
         const event: TaskWorkflowEvent = {
           type: "write_tasks",
           mode: params.mode as "replace" | "append",
@@ -198,9 +196,7 @@ export function createWriteTasksTool(
 
     renderCall(args, theme) {
       const phases = args.phases as Array<{ tasks: Array<unknown> }> | undefined;
-      const totalTasks = phases
-        ? phases.reduce((sum: number, p) => sum + p.tasks.length, 0)
-        : 0;
+      const totalTasks = phases ? phases.reduce((sum: number, p) => sum + p.tasks.length, 0) : 0;
       return new Text(
         theme.fg("toolTitle", theme.bold("write_tasks ")) +
           theme.fg("muted", `(${totalTasks} items)`),

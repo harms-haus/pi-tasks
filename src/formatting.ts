@@ -178,7 +178,9 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
       "Inspect dependencies and phase gating. Use edit_tasks to resolve blockers, then compile_tasks.",
       "",
       "Blocked tasks:",
-      ...nonTerminal.map((t) => `  [${t.id}] ${t.title} (${t.status}, ${phaseLabel(board, t.phase)})`),
+      ...nonTerminal.map(
+        (t) => `  [${t.id}] ${t.title} (${t.status}, ${phaseLabel(board, t.phase)})`,
+      ),
     ].join("\n");
   }
 
