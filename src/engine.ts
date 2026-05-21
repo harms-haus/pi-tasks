@@ -13,7 +13,7 @@ import {
 // ── Board Creation ──
 
 export function createEmptyBoard(): TaskBoardSnapshot {
-  return { version: 1, nextTaskId: 1, tasks: [], phases: [], pendingPhasePrompt: undefined };
+  return { version: 1, tasks: [], phases: [], pendingPhasePrompt: undefined };
 }
 
 // ── Write Tasks ──
@@ -57,7 +57,8 @@ export function writeTasks(
     validateTaskInput(inputTasks[i], i);
 
     const input = inputTasks[i];
-    const id = `task-${result.nextTaskId}`;
+    const phaseCount = result.tasks.filter(t => t.phase === input.phase).length;
+    const id = `t-${input.phase}.${phaseCount + 1}`;
     result.tasks.push({
       id,
       title: input.title.trim(),
@@ -69,7 +70,6 @@ export function writeTasks(
       createdAt: now,
       updatedAt: now,
     });
-    result.nextTaskId++;
   }
 
   return result;

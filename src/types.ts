@@ -33,7 +33,6 @@ export interface PhaseRecord {
 
 export interface TaskBoardSnapshot {
   version: 1;
-  nextTaskId: number;
   tasks: TaskRecord[];
   phases: PhaseRecord[];
   pendingPhasePrompt?: {
@@ -122,11 +121,11 @@ export const ALL_STATUSES: ReadonlySet<TaskStatus> = new Set([
 
 /** Status → plain-text icon character */
 export const STATUS_ICONS: Record<TaskStatus, string> = {
-  draft: "○",
-  configured: "◔",
-  ready: "●",
-  implementing: "▶",
-  reviewing: "◇",
-  done: "✓",
-  abandoned: "✗",
+  draft: "⚪",
+  configured: "🔵",
+  ready: "🟢",
+  implementing: "▶️",
+  reviewing: "🔍",
+  done: "✅",
+  abandoned: "❌",
 };

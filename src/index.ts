@@ -7,6 +7,7 @@ import {
   createCompileTasksTool,
   createClearTasksTool,
   createGetReadyTasksTool,
+  createAdvanceTasksTool,
 } from "./tools";
 
 export default function (pi: ExtensionAPI): void {
@@ -18,4 +19,5 @@ export default function (pi: ExtensionAPI): void {
   pi.registerTool(createCompileTasksTool(pi));
   pi.registerTool(createClearTasksTool(pi));
   pi.registerTool(createGetReadyTasksTool(pi));
+  pi.registerTool(createAdvanceTasksTool(pi));
 }

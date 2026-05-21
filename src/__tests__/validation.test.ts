@@ -36,8 +36,7 @@ function makeTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
 /** Creates a minimal valid TaskBoardSnapshot. */
 function makeBoard(overrides: Partial<TaskBoardSnapshot> = {}): TaskBoardSnapshot {
   return {
-    version: 1,
-    nextTaskId: 1,
+    version: 1 as const,
     tasks: [],
     phases: [],
     ...overrides,
@@ -336,8 +335,7 @@ describe("isValidSnapshot", () => {
 
   it("accepts a valid snapshot with tasks and phases", () => {
     const snapshot: TaskBoardSnapshot = {
-      version: 1,
-      nextTaskId: 5,
+      version: 1 as const,
       tasks: [makeTask()],
       phases: [{ phase: 1, status: "active" }],
     };
@@ -360,34 +358,29 @@ describe("isValidSnapshot", () => {
     expect(isValidSnapshot(makeBoard({ version: 0 as 1 }))).toBe(false);
   });
 
-  it("rejects missing nextTaskId", () => {
-    const snap = { version: 1, tasks: [], phases: [] };
-    expect(isValidSnapshot(snap)).toBe(false);
-  });
-
-  it("rejects non-number nextTaskId", () => {
-    const snap = { version: 1, nextTaskId: "1", tasks: [], phases: [] };
-    expect(isValidSnapshot(snap)).toBe(false);
-  });
-
   it("rejects missing tasks array", () => {
-    const snap = { version: 1, nextTaskId: 1, phases: [] };
+    const snap = { version: 1, phases: [] };
     expect(isValidSnapshot(snap)).toBe(false);
   });
 
   it("rejects missing phases array", () => {
-    const snap = { version: 1, nextTaskId: 1, tasks: [] };
+    const snap = { version: 1, tasks: [] };
     expect(isValidSnapshot(snap)).toBe(false);
   });
 
   it("rejects non-array tasks", () => {
-    const snap = { version: 1, nextTaskId: 1, tasks: "not-array", phases: [] };
+    const snap = { version: 1, tasks: "not-array", phases: [] };
     expect(isValidSnapshot(snap)).toBe(false);
   });
 
   it("rejects non-array phases", () => {
-    const snap = { version: 1, nextTaskId: 1, tasks: [], phases: "not-array" };
+    const snap = { version: 1, tasks: [], phases: "not-array" };
     expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("accepts snapshot with extra nextTaskId field (backward compat)", () => {
+    const snap = { version: 1, tasks: [], phases: [], nextTaskId: 3 };
+    expect(isValidSnapshot(snap)).toBe(true);
   });
 });
 
@@ -398,8 +391,7 @@ describe("isValidSnapshot", () => {
 describe("cloneBoard", () => {
   it("produces a structurally equal copy", () => {
     const board = makeBoard({
-      nextTaskId: 5,
-      tasks: [makeTask(), makeTask({ id: "task-2", title: "Second task" })],
+      tasks: [makeTask(), makeTask({ id: "t-1.2", title: "Second task" })],
       phases: [{ phase: 1, status: "active" }],
     });
     const clone = cloneBoard(board);
@@ -408,7 +400,6 @@ describe("cloneBoard", () => {
 
   it("produces a referentially distinct copy", () => {
     const board = makeBoard({
-      nextTaskId: 3,
       tasks: [makeTask()],
       phases: [{ phase: 1, status: "active" }],
     });
@@ -421,15 +412,12 @@ describe("cloneBoard", () => {
 
   it("mutations to clone do not affect original", () => {
     const board = makeBoard({
-      nextTaskId: 2,
       tasks: [makeTask()],
       phases: [{ phase: 1, status: "active" }],
     });
     const clone = cloneBoard(board);
     clone.tasks[0].title = "Modified";
-    clone.nextTaskId = 99;
     expect(board.tasks[0].title).toBe("Test task");
-    expect(board.nextTaskId).toBe(2);
   });
 
   it("clones an empty board correctly", () => {

@@ -11,6 +11,7 @@ import {
   CompileTasksParams,
   ClearTasksParams,
   GetReadyTasksParams,
+  AdvanceTasksParams,
 } from "./schemas";
 import { cloneBoard } from "./validation";
 import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE, TERMINAL_STATUSES } from "./types";
@@ -23,9 +24,9 @@ import {
   claimReadyTasks,
   getStatusCounts,
 } from "./engine";
-import { getBoard, setBoard, persistEntries, updateUI } from "./state";
+import { getBoard, setBoard, persistEntries, updateUI, consumeAdvanceWarning } from "./state";
 import { loadConfig, resolvePhasePrompt } from "./config";
-import { formatBoardText, formatSummaryLine, formatAllDoneMessage } from "./formatting";
+import { formatBoardText, formatSummaryLine, formatAllDoneMessage, formatClaimedTaskDetails } from "./formatting";
 
 // ── Details Type ──
 
@@ -84,21 +85,32 @@ async function checkAndSetPhaseCompletion(
 
 // ── Shared Result Renderer ──
 
-function renderResult(
-  result: AgentToolResult<TaskToolDetails>,
-  _options: { expanded: boolean; isPartial: boolean },
+function renderColoredBoardResult(
+  text: string,
+  _snapshot: TaskBoardSnapshot,
   theme: Theme,
 ): Text {
-  const details = result.details as TaskToolDetails | undefined;
-  const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
-  if (!details) {
-    return new Text(text, 0, 0);
-  }
-  if (details.error) {
-    return new Text(theme.fg("error", details.error), 0, 0);
-  }
-  return new Text(theme.fg("text", text), 0, 0);
+  const lines = text.split('\n');
+  const colored = lines.map(line => {
+    if (/^─── Phase \d+ ───/.test(line)) {
+      return theme.fg("accent", theme.bold(line));
+    }
+    const taskLineMatch = line.match(/^(\S+\s+)(t-\d+\.\d+:\s)(.*)/);
+    if (taskLineMatch) {
+      return taskLineMatch[1] + theme.fg("muted", taskLineMatch[2]) + taskLineMatch[3];
+    }
+    if (line.includes('→ depends on')) {
+      return line.replace(/(t-\d+\.\d+)/g, (m) => theme.fg("muted", m));
+    }
+    if (line.startsWith('Summary:')) {
+      return theme.fg("muted", line);
+    }
+    return line;
+  }).join('\n');
+  return new Text(colored, 0, 0);
 }
+
+
 
 // ── Tool 1: write_tasks ──
 
@@ -119,7 +131,7 @@ export function createWriteTasksTool(
       "Use edit_tasks with type 'blockers' to set task dependencies.",
       "Use compile_tasks to validate and activate the board after writing/editing.",
       "Use get_ready_tasks to claim tasks that are ready to work on.",
-      "Use edit_tasks with type 'advance' to move implementing → reviewing → done.",
+      "Use advance_tasks to move tasks through implementing → reviewing → done.",
       "Use edit_tasks with type 'abandon' to skip tasks no longer needed.",
       "Tasks in later phases only become ready after earlier phases are complete.",
     ],
@@ -164,7 +176,13 @@ export function createWriteTasksTool(
       );
     },
 
-    renderResult,
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return renderColoredBoardResult(text, details.snapshot, theme);
+    },
   };
 }
 
@@ -177,7 +195,7 @@ export function createEditTasksTool(
     name: "edit_tasks",
     label: "Edit Tasks",
     description:
-      "Batch-edit tasks on the board. Supports four edit types: 'data' (modify title/prompt/profile/phase), 'blockers' (set dependencies), 'advance' (implementing→reviewing or reviewing→done), and 'abandon' (mark as abandoned). Edits are atomic — if any fails, none are applied.",
+      "Batch-edit tasks on the board. Supports three edit types: 'data' (modify title/prompt/profile/phase), 'blockers' (set dependencies), and 'abandon' (mark as abandoned). Edits are atomic — if any fails, none are applied.",
     parameters: EditTasksParams,
     promptSnippet: undefined,
     promptGuidelines: undefined,
@@ -206,9 +224,6 @@ export function createEditTasksTool(
             data: (t as { data: { dependencies: string[] } }).data,
           };
         }
-        if (t.type === "advance") {
-          return { id: t.id, type: "advance" };
-        }
         return { id: t.id, type: "abandon" };
       });
 
@@ -231,20 +246,6 @@ export function createEditTasksTool(
               id: edit.id,
               dependencies: edit.data.dependencies,
             };
-          } else if (edit.type === "advance") {
-            // Resolve from/to from the board for accurate event payload
-            const original = board.tasks.find((t) => t.id === edit.id);
-            const updated = newBoard.tasks.find((t) => t.id === edit.id);
-            if (original && updated) {
-              event = {
-                type: "advance_task",
-                id: edit.id,
-                from: original.status as "implementing" | "reviewing",
-                to: updated.status as "reviewing" | "done",
-              };
-            } else {
-              event = { type: "advance_task", id: edit.id, from: "implementing", to: "reviewing" };
-            }
           } else {
             event = { type: "abandon_task", id: edit.id };
           }
@@ -254,8 +255,13 @@ export function createEditTasksTool(
         updateUI(ctx, newBoard);
 
         const summary = formatSummaryLine(newBoard);
+        const hasStructuralEdits = edits.some(e => e.type === "data" || e.type === "blockers");
+        const allTerminal = newBoard.tasks.every(t => TERMINAL_STATUSES.has(t.status));
+        const boardText = (hasStructuralEdits || allTerminal)
+          ? formatBoardText(newBoard)
+          : formatBoardText(newBoard, { activePhaseOnly: true });
         return makeSuccessResult(
-          `Applied ${edits.length} edit(s). ${summary}\n\n${formatBoardText(newBoard)}`,
+          `Applied ${edits.length} edit(s). ${summary}\n\n${boardText}`,
           newBoard,
         );
       } catch (err) {
@@ -272,7 +278,13 @@ export function createEditTasksTool(
       );
     },
 
-    renderResult,
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return renderColoredBoardResult(text, details.snapshot, theme);
+    },
   };
 }
 
@@ -325,7 +337,13 @@ export function createCompileTasksTool(
       return new Text(theme.fg("toolTitle", theme.bold("compile_tasks")), 0, 0);
     },
 
-    renderResult,
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return renderColoredBoardResult(text, details.snapshot, theme);
+    },
   };
 }
 
@@ -358,7 +376,13 @@ export function createClearTasksTool(
       return new Text(theme.fg("toolTitle", theme.bold("clear_tasks")), 0, 0);
     },
 
-    renderResult,
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return new Text(theme.fg("text", text), 0, 0);
+    },
   };
 }
 
@@ -371,7 +395,7 @@ export function createGetReadyTasksTool(
     name: "get_ready_tasks",
     label: "Get Ready Tasks",
     description:
-      "Claim ready tasks from the board. Moves claimed tasks to 'implementing' status. Ordered by phase ascending, then creation order. After claiming, work through implementing → reviewing → done using edit_tasks with type 'advance'.",
+      "Claim ready tasks from the board. Moves claimed tasks to 'implementing' status. Ordered by phase ascending, then creation order. After claiming, work through implementing → reviewing → done using advance_tasks.",
     parameters: GetReadyTasksParams,
     promptSnippet: undefined,
     promptGuidelines: undefined,
@@ -416,15 +440,10 @@ export function createGetReadyTasksTool(
         persistEntries(pi, event, result.board);
         updateUI(ctx, result.board);
 
-        const claimedDetails = result.claimed
-          .map(
-            (t) =>
-              `─── ${t.id}: ${t.title} ───\nPhase: ${t.phase}\nProfile: ${t.profile}\nPrompt:\n${t.prompt}`,
-          )
-          .join("\n\n");
+        const claimedDetails = formatClaimedTaskDetails(result.claimed);
 
         return makeSuccessResult(
-          `Claimed ${result.claimed.length} task(s).\n\n${claimedDetails}\n\nReview each claimed task and advance through implementing → reviewing → done using edit_tasks.\n\n${formatBoardText(result.board)}`,
+          `Claimed ${result.claimed.length} task(s).\n\n${claimedDetails}\n\nReview each claimed task and advance through implementing → reviewing → done using advance_tasks.\n\n${formatBoardText(result.board, { activePhaseOnly: true })}`,
           result.board,
         );
       } catch (err) {
@@ -441,6 +460,97 @@ export function createGetReadyTasksTool(
       );
     },
 
-    renderResult,
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return renderColoredBoardResult(text, details.snapshot, theme);
+    },
+  };
+}
+
+// ── Tool 6: advance_tasks ──
+
+export function createAdvanceTasksTool(
+  pi: ExtensionAPI,
+): ToolDefinition<typeof AdvanceTasksParams, TaskToolDetails> {
+  return {
+    name: "advance_tasks",
+    label: "Advance Tasks",
+    description:
+      "Advance tasks through their lifecycle: implementing → reviewing → done. Each call advances each task by one step. Tasks must be in 'implementing' or 'reviewing' status.",
+    parameters: AdvanceTasksParams,
+    promptSnippet: "advance_tasks: move tasks implementing → reviewing → done",
+    promptGuidelines: [
+      "Use advance_tasks to advance claimed tasks through implementing → reviewing → done.",
+      "Each call advances by one step: implementing→reviewing, then reviewing→done.",
+      "IMPORTANT: Do NOT skip the review step. After advancing to reviewing, review the work before advancing to done.",
+    ],
+
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const board = getBoard();
+      const now = new Date().toISOString();
+      const beforePhases = board.phases.map(p => ({ ...p }));
+
+      const uniqueIds = [...new Set(params.ids)];
+      const edits: TaskEdit[] = uniqueIds.map(id => ({ id, type: "advance" as const }));
+
+      try {
+        const newBoard = applyEdits(board, edits, now);
+        await checkAndSetPhaseCompletion(beforePhases, newBoard);
+
+        const hasWarning = consumeAdvanceWarning();
+
+        setBoard(newBoard);
+
+        for (const edit of edits) {
+          const original = board.tasks.find(t => t.id === edit.id);
+          const updated = newBoard.tasks.find(t => t.id === edit.id);
+          const event: TaskWorkflowEvent = (original && updated)
+            ? {
+                type: "advance_task",
+                id: edit.id,
+                from: original.status as "implementing" | "reviewing",
+                to: updated.status as "reviewing" | "done",
+              }
+            : { type: "advance_task", id: edit.id, from: "implementing", to: "reviewing" };
+          pi.appendEntry(CUSTOM_EVENT_TYPE, event);
+        }
+        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(newBoard));
+        updateUI(ctx, newBoard);
+
+        const allTerminal = newBoard.tasks.every(t => TERMINAL_STATUSES.has(t.status));
+        const boardText = allTerminal
+          ? formatBoardText(newBoard)
+          : formatBoardText(newBoard, { activePhaseOnly: true });
+
+        const summary = formatSummaryLine(newBoard);
+        let text = `Advanced ${edits.length} task(s). ${summary}\n\n${boardText}`;
+        if (hasWarning) {
+          text = `⚠️ Review should not be skipped. Please actually review the work before advancing to done.\n\n${text}`;
+        }
+        return makeSuccessResult(text, newBoard);
+      } catch (err) {
+        return makeErrorResult(err instanceof Error ? err.message : String(err), board);
+      }
+    },
+
+    renderCall(args, theme) {
+      return new Text(
+        theme.fg("toolTitle", theme.bold("advance_tasks ")) +
+          theme.fg("muted", `(${args.ids.length} tasks)`),
+        0,
+        0,
+      );
+    },
+
+    renderResult(result, _options, theme) {
+      const details = result.details as TaskToolDetails | undefined;
+      const text = result.content[0] && "text" in result.content[0] ? result.content[0].text : "";
+      if (!details) return new Text(text, 0, 0);
+      if (details.error) return new Text(theme.fg("error", details.error), 0, 0);
+      return renderColoredBoardResult(text, details.snapshot, theme);
+    },
   };
 }

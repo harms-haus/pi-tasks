@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CUSTOM_SNAPSHOT_TYPE, MAX_AUTO_CONTINUE } from "./types";
 import { cloneBoard, hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
-import { getBoardRef, setBoard, reconstructState, updateUI, incrementAutoContinue } from "./state";
+import { getBoardRef, setBoard, reconstructState, updateUI, incrementAutoContinue, getLastToolWasAdvance, setLastToolWasAdvance, setAdvanceWarningPending } from "./state";
 import { resetConfig } from "./config";
 import { formatHiddenContext, formatContinuePrompt } from "./formatting";
 
@@ -100,6 +100,8 @@ function scheduleAutoContinue(pi: ExtensionAPI, ctx: ExtensionContext, prompt: s
 export function registerEventHandlers(pi: ExtensionAPI): void {
   pi.on("session_start", (_, ctx) => {
     clearCountdown(ctx);
+    setLastToolWasAdvance(false);
+    setAdvanceWarningPending(false);
     const board = reconstructState(ctx);
     setBoard(board);
     updateUI(ctx, board);
@@ -108,6 +110,8 @@ export function registerEventHandlers(pi: ExtensionAPI): void {
   pi.on("session_tree", (_, ctx) => {
     clearCountdown(ctx);
     resetConfig();
+    setLastToolWasAdvance(false);
+    setAdvanceWarningPending(false);
     const board = reconstructState(ctx);
     setBoard(board);
     updateUI(ctx, board);
@@ -176,5 +180,19 @@ export function registerEventHandlers(pi: ExtensionAPI): void {
 
   pi.on("input", (_, ctx) => {
     clearCountdown(ctx);
+    setLastToolWasAdvance(false);
+    setAdvanceWarningPending(false);
+  });
+
+  pi.on("tool_result", (event) => {
+    const toolName = (event as { toolName?: string }).toolName;
+    if (toolName === "advance_tasks") {
+      if (getLastToolWasAdvance()) {
+        setAdvanceWarningPending(true);
+      }
+      setLastToolWasAdvance(true);
+    } else {
+      setLastToolWasAdvance(false);
+    }
   });
 }

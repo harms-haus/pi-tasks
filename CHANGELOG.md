@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- New `advance_tasks` tool for advancing tasks through implementing → reviewing → done (extracted from `edit_tasks`)
+- Double-usage warning: alerts when `advance_tasks` is called twice consecutively without intervening tool usage
+- Conditional board rendering: `get_ready_tasks` and `advance_tasks` now show only the active phase
+- Truncated claimed task output: shows 3 lines of prompt with `... (ctrl-o to expand)` hint
+- Emoji status icons: ⚪🔵🟢▶️🔍✅❌ replace ASCII symbols
+
 ### Bug Fixes
 
 - Fixed double auto-continue firing in headless mode due to missing `clearTimeout` on existing timer
@@ -9,6 +17,10 @@
 
 ### Changed
 
+- Task IDs now use `t-{phase}.{index}` format (e.g., `t-1.1`, `t-2.3`) instead of `task-{N}`
+- `edit_tasks` no longer supports `type: "advance"` — use the new `advance_tasks` tool instead
+- Board rendering: phase headers use `─── Phase N ───` format, task lines use `{emoji} {id}: {title}` format
+- `nextTaskId` field removed from `TaskBoardSnapshot` (backward compatible with old snapshots)
 - Consolidated all `cloneBoard()` usage to a single helper, eliminating scattered deep-clone patterns
 - Moved `getStatusCounts` from `engine.ts` to `validation.ts` to colocate with other status-related logic
 - Replaced all magic status-string literals with the `TERMINAL_STATUSES` constant for consistency

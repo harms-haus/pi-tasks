@@ -9,6 +9,7 @@ vi.mock("../tools", () => ({
   createCompileTasksTool: vi.fn(() => ({ name: "compile_tasks" })),
   createClearTasksTool: vi.fn(() => ({ name: "clear_tasks" })),
   createGetReadyTasksTool: vi.fn(() => ({ name: "get_ready_tasks" })),
+  createAdvanceTasksTool: vi.fn(() => ({ name: "advance_tasks" })),
 }));
 
 // Import after mocks are set up
@@ -24,8 +25,8 @@ describe("index (default export)", () => {
 
     indexModule.default(mockObj.api);
 
-    // 5 tools registered
-    expect(mockObj.registerTool).toHaveBeenCalledTimes(5);
+    // 6 tools registered
+    expect(mockObj.registerTool).toHaveBeenCalledTimes(6);
     const toolNames = mockObj.registerTool.mock.calls.map(
       (call: unknown) => (call as [{ name: string }])[0].name,
     );
@@ -34,15 +35,17 @@ describe("index (default export)", () => {
     expect(toolNames).toContain("compile_tasks");
     expect(toolNames).toContain("clear_tasks");
     expect(toolNames).toContain("get_ready_tasks");
+    expect(toolNames).toContain("advance_tasks");
 
-    // Event handlers registered (5 events)
-    expect(mockObj.on).toHaveBeenCalledTimes(5);
+    // Event handlers registered (6 events)
+    expect(mockObj.on).toHaveBeenCalledTimes(6);
     const eventNames = mockObj.on.mock.calls.map((call: unknown) => (call as [string, unknown])[0]);
     expect(eventNames).toContain("session_start");
     expect(eventNames).toContain("session_tree");
     expect(eventNames).toContain("before_agent_start");
     expect(eventNames).toContain("agent_end");
     expect(eventNames).toContain("input");
+    expect(eventNames).toContain("tool_result");
 
     // Message renderers registered (2 renderers)
     expect(mockObj.registerMessageRenderer).toHaveBeenCalledTimes(2);

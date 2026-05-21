@@ -11,33 +11,41 @@ function getStatusIcon(status: TaskStatus): string {
 
 /** Format a single task as a plain-text line. */
 function formatTaskLine(task: TaskRecord): string {
-  return `${getStatusIcon(task.status)} [${task.id}] Phase ${task.phase} · ${task.title}`;
+  return `${getStatusIcon(task.status)} ${task.id}: ${task.title}`;
 }
 
 /** Format the full board as a plain-text summary for LLM consumption. */
-export function formatBoardText(board: TaskBoardSnapshot): string {
+export function formatBoardText(
+  board: TaskBoardSnapshot,
+  options?: { activePhaseOnly?: boolean },
+): string {
   if (board.tasks.length === 0) return "No tasks on the board.";
 
   const lines: string[] = ["Task Board:", ""];
 
-  // Group by phase
-  const phases = [...new Set(board.tasks.map((t) => t.phase))].sort((a, b) => a - b);
+  const activePhaseOnly = options?.activePhaseOnly === true;
+  const activePhaseRecord = board.phases.find((p) => p.status === "active");
+  const useActiveOnly = activePhaseOnly && activePhaseRecord !== undefined;
+
+  // Determine which phases to render
+  const phases = useActiveOnly
+    ? [activePhaseRecord.phase]
+    : [...new Set(board.tasks.map((t) => t.phase))].sort((a, b) => a - b);
+
   for (const phase of phases) {
-    const phaseRecord = board.phases.find((p) => p.phase === phase);
-    const phaseStatus = phaseRecord ? ` (${phaseRecord.status})` : "";
-    lines.push(`── Phase ${phase}${phaseStatus} ──`);
+    lines.push(`─── Phase ${phase} ───`);
     const phaseTasks = board.tasks.filter((t) => t.phase === phase);
     for (const task of phaseTasks) {
       let line = formatTaskLine(task);
       if (task.dependencies.length > 0) {
-        line += ` → depends on [${task.dependencies.join(", ")}]`;
+        line += ` → depends on ${task.dependencies.join(", ")}`;
       }
       lines.push(line);
     }
     lines.push("");
   }
 
-  // Summary line
+  // Summary line (always across ALL phases)
   const counts = getStatusCounts(board);
   const parts: string[] = [];
   for (const [status, count] of Object.entries(counts)) {
@@ -56,6 +64,22 @@ export function formatSummaryLine(board: TaskBoardSnapshot): string {
   return activePhase
     ? `Phase ${activePhase.phase} · ${done}/${total} done`
     : `${done}/${total} done`;
+}
+
+/** Format claimed task details with prompt preview. */
+export function formatClaimedTaskDetails(tasks: TaskRecord[]): string {
+  return tasks.map(t => {
+    const lines = [
+      `${getStatusIcon(t.status)} ${t.id}: ${t.title}  (${t.profile})`,
+    ];
+    const promptLines = t.prompt.split('\n');
+    const shown = promptLines.slice(0, 3);
+    lines.push(...shown);
+    if (promptLines.length > 3) {
+      lines.push('  ... (ctrl-o to expand)');
+    }
+    return lines.join('\n');
+  }).join('\n\n');
 }
 
 /** Format the hidden context message for before_agent_start injection. */
@@ -113,7 +137,7 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
 
   lines.push("");
   lines.push(
-    "Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → edit_tasks (advance) → done",
+    "Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → advance_tasks → done",
   );
 
   return lines.join("\n");

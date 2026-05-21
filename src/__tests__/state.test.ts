@@ -11,6 +11,10 @@ import {
   reconstructState,
   persistEntries,
   updateUI,
+  getLastToolWasAdvance,
+  setLastToolWasAdvance,
+  consumeAdvanceWarning,
+  setAdvanceWarningPending,
 } from "../state";
 import { createMockContext, createMockAPI } from "./helpers/mocks";
 
@@ -20,11 +24,10 @@ import { createMockContext, createMockAPI } from "./helpers/mocks";
 function makeSampleBoard(overrides: Partial<TaskBoardSnapshot> = {}): TaskBoardSnapshot {
   const now = new Date().toISOString();
   return {
-    version: 1,
-    nextTaskId: 3,
+    version: 1 as const,
     tasks: [
       {
-        id: "task-1",
+        id: "t-1.1",
         title: "Setup project",
         prompt: "Initialize the project",
         profile: "coder",
@@ -35,12 +38,12 @@ function makeSampleBoard(overrides: Partial<TaskBoardSnapshot> = {}): TaskBoardS
         updatedAt: now,
       },
       {
-        id: "task-2",
+        id: "t-2.1",
         title: "Write tests",
         prompt: "Write comprehensive tests",
         profile: "tester",
         phase: 2,
-        dependencies: ["task-1"],
+        dependencies: ["t-1.1"],
         status: "ready",
         createdAt: now,
         updatedAt: now,
@@ -80,8 +83,8 @@ describe("state", () => {
     });
 
     it("finds the latest snapshot in reverse scan", () => {
-      const firstSnapshot = makeSampleBoard({ nextTaskId: 10 });
-      const secondSnapshot = makeSampleBoard({ nextTaskId: 20 });
+      const firstSnapshot = makeSampleBoard({ tasks: [...makeSampleBoard().tasks, { id: "extra", title: "Extra", prompt: "P", profile: "c", phase: 1, dependencies: [], status: "draft", createdAt: "", updatedAt: "" }] });
+      const secondSnapshot = makeSampleBoard();
 
       const branch = [
         snapshotEntry(firstSnapshot),
@@ -92,7 +95,7 @@ describe("state", () => {
       const ctx = createMockContext(branch);
       const board = reconstructState(ctx);
 
-      expect(board.nextTaskId).toBe(20);
+      expect(board.tasks.length).toBe(secondSnapshot.tasks.length);
     });
 
     it("skips entries with wrong customType", () => {
@@ -113,18 +116,18 @@ describe("state", () => {
     it("skips entries with invalid snapshot data", () => {
       const validSnapshot = makeSampleBoard();
       const branch = [
-        snapshotEntry({ version: 2, nextTaskId: 1 }), // wrong version
+        snapshotEntry({ version: 2 }), // wrong version
         snapshotEntry(null), // null data
         snapshotEntry(undefined), // undefined data
         snapshotEntry({}), // missing fields
-        snapshotEntry({ version: 1 }), // missing nextTaskId
+        snapshotEntry({ version: 1, tasks: "not-array", phases: [] }), // invalid tasks
         snapshotEntry(validSnapshot),
       ];
 
       const ctx = createMockContext(branch);
       const board = reconstructState(ctx);
 
-      expect(board.nextTaskId).toBe(validSnapshot.nextTaskId);
+      expect(board.tasks.length).toBe(validSnapshot.tasks.length);
     });
 
     it("returns empty board when all snapshots are invalid", () => {
@@ -148,7 +151,6 @@ describe("state", () => {
       const board = reconstructState(ctx);
 
       // Mutate the returned board
-      board.nextTaskId = 999;
       board.tasks.push({
         id: "task-evil",
         title: "evil",
@@ -163,7 +165,6 @@ describe("state", () => {
 
       // Re-reconstruct: should still get original data
       const board2 = reconstructState(ctx);
-      expect(board2.nextTaskId).toBe(snapshot.nextTaskId);
       expect(board2.tasks.length).toBe(snapshot.tasks.length);
     });
   });
@@ -203,12 +204,10 @@ describe("state", () => {
       const board1 = getBoard();
 
       // Mutate the returned copy
-      board1.nextTaskId = 999;
       board1.tasks[0].title = "MUTATED";
 
       // Get a fresh copy — should not reflect the mutation
       const board2 = getBoard();
-      expect(board2.nextTaskId).not.toBe(999);
       expect(board2.tasks[0].title).not.toBe("MUTATED");
     });
 
@@ -217,12 +216,10 @@ describe("state", () => {
       setBoard(original);
 
       // Mutate the original
-      original.nextTaskId = 999;
       original.tasks[0].title = "MUTATED";
 
       // getBoard should not reflect the mutation
       const board = getBoard();
-      expect(board.nextTaskId).not.toBe(999);
       expect(board.tasks[0].title).not.toBe("MUTATED");
     });
   });
@@ -292,11 +289,10 @@ describe("state", () => {
       const ctx = createMockContext([]);
       const now = new Date().toISOString();
       const board: TaskBoardSnapshot = {
-        version: 1,
-        nextTaskId: 3,
+        version: 1 as const,
         tasks: [
           {
-            id: "task-1",
+            id: "t-1.1",
             title: "Build feature",
             prompt: "Build it",
             profile: "coder",
@@ -307,12 +303,12 @@ describe("state", () => {
             updatedAt: now,
           },
           {
-            id: "task-2",
+            id: "t-1.2",
             title: "Review feature",
             prompt: "Review it",
             profile: "reviewer",
             phase: 1,
-            dependencies: ["task-1"],
+            dependencies: ["t-1.1"],
             status: "reviewing",
             createdAt: now,
             updatedAt: now,
@@ -326,7 +322,7 @@ describe("state", () => {
       // Should set the active lines
       expect(ctx.ui.setStatus).toHaveBeenCalledWith(
         "phased-tasks-active",
-        "[task-1] Build feature\n[task-2] Review feature",
+        "[t-1.1] Build feature\n[t-1.2] Review feature",
       );
     });
 
@@ -334,11 +330,10 @@ describe("state", () => {
       const ctx = createMockContext([]);
       const now = new Date().toISOString();
       const board: TaskBoardSnapshot = {
-        version: 1,
-        nextTaskId: 3,
+        version: 1 as const,
         tasks: [
           {
-            id: "task-1",
+            id: "t-1.1",
             title: "Done task",
             prompt: "Done",
             profile: "coder",
@@ -349,7 +344,7 @@ describe("state", () => {
             updatedAt: now,
           },
           {
-            id: "task-2",
+            id: "t-1.2",
             title: "Abandoned task",
             prompt: "Abandoned",
             profile: "coder",
@@ -382,11 +377,10 @@ describe("state", () => {
       const ctx = createMockContext([]);
       const now = new Date().toISOString();
       const board: TaskBoardSnapshot = {
-        version: 1,
-        nextTaskId: 2,
+        version: 1 as const,
         tasks: [
           {
-            id: "task-1",
+            id: "t-1.1",
             title: "Draft task",
             prompt: "Draft",
             profile: "coder",
@@ -441,6 +435,37 @@ describe("state", () => {
       resetState();
 
       expect(incrementAutoContinue()).toBe(1);
+    });
+  });
+
+  // ── Double-usage tracking state ──
+
+  describe("double-usage tracking state", () => {
+    it("getLastToolWasAdvance returns false initially", () => {
+      expect(getLastToolWasAdvance()).toBe(false);
+    });
+
+    it("setLastToolWasAdvance sets the flag", () => {
+      setLastToolWasAdvance(true);
+      expect(getLastToolWasAdvance()).toBe(true);
+    });
+
+    it("consumeAdvanceWarning returns false when not set", () => {
+      expect(consumeAdvanceWarning()).toBe(false);
+    });
+
+    it("consumeAdvanceWarning returns true then resets", () => {
+      setAdvanceWarningPending(true);
+      expect(consumeAdvanceWarning()).toBe(true);
+      expect(consumeAdvanceWarning()).toBe(false);
+    });
+
+    it("resetState clears both flags", () => {
+      setLastToolWasAdvance(true);
+      setAdvanceWarningPending(true);
+      resetState();
+      expect(getLastToolWasAdvance()).toBe(false);
+      expect(consumeAdvanceWarning()).toBe(false);
     });
   });
 });

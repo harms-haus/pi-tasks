@@ -1,5 +1,7 @@
 # Phased Task Workflow Extension Plan
 
+> **Note:** This document is a historical design doc and does not fully reflect the current implementation. Key changes: task IDs use `t-{phase}.{index}` format, 6 tools (advance_tasks extracted from edit_tasks), emoji status icons, `nextTaskId` removed from snapshot, conditional board rendering, double-advance warning detection. See source code for current state.
+
 ## Goal
 
 Build a new standalone pi extension package that manages session-scoped tasks with:

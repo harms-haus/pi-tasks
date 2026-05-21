@@ -1,5 +1,27 @@
 # pi-tasks Implementation Plan
 
+> **Note:** This document is a historical design doc and does not fully reflect the current implementation. Key changes: task IDs use `t-{phase}.{index}` format, 6 tools (advance_tasks extracted from edit_tasks), emoji status icons, `nextTaskId` removed from snapshot, conditional board rendering, double-advance warning detection. See source code for current state.
+>
+> The original divergence notes remain below for reference.
+>
+> **Note: This plan reflects the original design. The implementation diverged in several areas.**
+> Key divergences are noted inline with `[IMPLEMENTATION DIVERGENCE]` markers. See the source code for the current canonical behavior.
+>
+> **Summary of major divergences:**
+> 1. **Task IDs**: Format is `t-{phase}.{index}` (phase-relative), not `task-N` monotonic. No `nextTaskId` field in `TaskBoardSnapshot`.
+> 2. **6 tools** instead of 5: `advance_tasks` is a separate tool, not an `edit_tasks` type.
+> 3. **`edit_tasks` has 3 types**: `data`, `blockers`, `abandon` — no `advance`.
+> 4. **Emoji status icons** instead of plain-text characters.
+> 5. **`src/schemas.ts`** extracted from `tools.ts` for TypeBox schema definitions.
+> 6. **Additional state tracking** in `state.ts`: `lastToolWasAdvance`, `advanceWarningPending` for review-skip detection.
+> 7. **`tool_result` event handler** in `events.ts` (6 handlers total, not 5).
+> 8. **Conditional board rendering**: `formatBoardText` accepts `{ activePhaseOnly }` option.
+> 9. **Truncated claimed-task output**: `formatClaimedTaskDetails` shows first 3 lines of prompt.
+> 10. **`isValidTaskRecord`** not implemented in `validation.ts`.
+> 11. **`getActivePhase` and `getReadyTasks`** not implemented in `engine.ts`.
+> 12. **Engine tests split** across 4 files: `engine-write.test.ts`, `engine-compile.test.ts`, `engine-edits.test.ts`, `engine-queries.test.ts`.
+> 13. **Additional test files**: `config.test.ts`, `index.test.ts`, `renderers.test.ts` not in original plan.
+
 ## Overview
 
 Build `pi-tasks`, a standalone pi extension for session-scoped phased task management with strict status gating, dependency tracking, and auto-continuation. The package lives at `/home/blake/Documents/software/pi-extensions/pi-tasks/`.
@@ -165,9 +187,9 @@ export interface PhaseRecord {
 
 // ── Board Snapshot ──
 
+// [IMPLEMENTATION DIVERGENCE] No `nextTaskId` field. IDs are computed as `t-{phase}.{index}` at write time.
 export interface TaskBoardSnapshot {
   version: 1;
-  nextTaskId: number;
   tasks: TaskRecord[];
   phases: PhaseRecord[];
   pendingPhasePrompt?: {
@@ -230,15 +252,16 @@ export const ALL_STATUSES: ReadonlySet<TaskStatus> = new Set([
   "draft", "configured", "ready", "implementing", "reviewing", "done", "abandoned",
 ]);
 
-/** Status → plain-text icon character */
+// [IMPLEMENTATION DIVERGENCE] Uses emoji icons instead of plain-text characters.
+/** Status → icon character */
 export const STATUS_ICONS: Record<TaskStatus, string> = {
-  draft: "○",
-  configured: "◔",
-  ready: "●",
-  implementing: "▶",
-  reviewing: "◇",
-  done: "✓",
-  abandoned: "✗",
+  draft: "⚪",
+  configured: "🔵",
+  ready: "🟢",
+  implementing: "▶️",
+  reviewing: "🔍",
+  done: "✅",
+  abandoned: "❌",
 };
 ```
 
@@ -266,8 +289,12 @@ Step 1 (scaffold must exist for TS resolution)
 Pure functions with no pi imports. Import types from `./types`.
 
 ```ts
-import type { TaskRecord, TaskStatus, TaskBoardSnapshot, TaskEdit } from "./types";
-import { ALL_STATUSES, TERMINAL_STATUSES, ACTIVE_STATUSES } from "./types";
+import type { TaskRecord, TaskStatus, TaskBoardSnapshot } from "./types";
+import { TERMINAL_STATUSES, ACTIVE_STATUSES } from "./types";
+
+// [IMPLEMENTATION DIVERGENCE] `isValidTaskRecord` was never implemented.
+// [IMPLEMENTATION DIVERGENCE] `getStatusCounts` was moved here from engine.ts.
+// [IMPLEMENTATION DIVERGENCE] `hasActiveTasks` and `hasNonTerminalTasks` are private (not exported).
 
 // ── String Validation ──
 
@@ -285,22 +312,8 @@ export function isValidPhase(value: unknown): value is number {
 
 // ── Task Validation ──
 
-/** Returns true if all fields of a TaskRecord are structurally valid (does NOT check id uniqueness or dependency existence). */
-export function isValidTaskRecord(t: unknown): t is TaskRecord {
-  if (typeof t !== "object" || t === null) return false;
-  const obj = t as Record<string, unknown>;
-  return (
-    typeof obj.id === "string" &&
-    typeof obj.title === "string" && obj.title.length > 0 &&
-    typeof obj.prompt === "string" && obj.prompt.length > 0 &&
-    typeof obj.profile === "string" && obj.profile.length > 0 &&
-    typeof obj.phase === "number" && Number.isInteger(obj.phase) && obj.phase >= 1 &&
-    Array.isArray(obj.dependencies) && obj.dependencies.every(d => typeof d === "string") &&
-    typeof obj.status === "string" && ALL_STATUSES.has(obj.status as TaskStatus) &&
-    typeof obj.createdAt === "string" &&
-    typeof obj.updatedAt === "string"
-  );
-}
+// [IMPLEMENTATION DIVERGENCE] `isValidTaskRecord` was never implemented.
+// It was planned but omitted during implementation.
 
 // ── Dependency Validation ──
 
@@ -368,19 +381,20 @@ export function detectCycle(tasks: TaskRecord[]): string[] {
 
 // ── Board State Checks ──
 
+// [IMPLEMENTATION DIVERGENCE] These are private (not exported).
 /** Returns true if any task is in implementing or reviewing. */
-export function hasActiveTasks(board: TaskBoardSnapshot): boolean {
+function hasActiveTasks(board: TaskBoardSnapshot): boolean {
   return board.tasks.some(t => ACTIVE_STATUSES.has(t.status));
 }
 
 /** Returns true if any task is in a non-terminal state. */
-export function hasNonTerminalTasks(board: TaskBoardSnapshot): boolean {
+function hasNonTerminalTasks(board: TaskBoardSnapshot): boolean {
   return board.tasks.some(t => !TERMINAL_STATUSES.has(t.status));
 }
 
 /** Returns true if there are tasks in ready, implementing, or reviewing. */
 export function hasActionableTasks(board: TaskBoardSnapshot): boolean {
-  return board.tasks.some(t => t.status === "ready" || ACTIVE_STATUSES.has(t.status));
+  return board.tasks.some(t => t.status === "ready") || hasActiveTasks(board);
 }
 
 /** Returns true if there are non-terminal tasks but none are actionable (deadlock). */
@@ -390,16 +404,30 @@ export function hasBlockedNonTerminalTasks(board: TaskBoardSnapshot): boolean {
 
 // ── Snapshot Validation ──
 
+// [IMPLEMENTATION DIVERGENCE] Does NOT check `nextTaskId` (field was removed).
 /** Type guard for a valid TaskBoardSnapshot. Checks version field and basic structure. */
 export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
   if (typeof data !== "object" || data === null) return false;
   const obj = data as Record<string, unknown>;
   return (
     obj.version === 1 &&
-    typeof obj.nextTaskId === "number" &&
     Array.isArray(obj.tasks) &&
     Array.isArray(obj.phases)
   );
+}
+
+// ── Status Counts ──
+
+// [IMPLEMENTATION DIVERGENCE] Moved here from the planned engine.ts location.
+/** Counts tasks by status. Returns a fully-populated Record with all statuses (zero if absent). */
+export function getStatusCounts(board: TaskBoardSnapshot): Record<TaskStatus, number> {
+  const counts: Record<TaskStatus, number> = {
+    draft: 0, configured: 0, ready: 0, implementing: 0, reviewing: 0, done: 0, abandoned: 0,
+  };
+  for (const t of board.tasks) {
+    counts[t.status]++;
+  }
+  return counts;
 }
 
 // ── Deep Clone ──
@@ -419,7 +447,9 @@ export function cloneBoard(board: TaskBoardSnapshot): TaskBoardSnapshot {
 - `hasSelfDependency` detects self-refs
 - `hasDuplicateDependencies` detects duplicate deps
 - `detectCycle` returns non-empty array for cyclic graphs and empty array for acyclic
-- `isValidSnapshot` validates version, nextTaskId, tasks, and phases fields
+- `isValidSnapshot` validates version, tasks, and phases fields (does NOT check `nextTaskId`)
+- [IMPLEMENTATION DIVERGENCE] `isValidTaskRecord` was never implemented
+- `getStatusCounts` is defined here (moved from engine.ts)
 - `cloneBoard` produces a structurally equal but referentially distinct copy
 - `npx tsc --noEmit` passes
 
@@ -439,7 +469,9 @@ Step 2 (types.ts)
 
 Pure functions only. No pi imports. Import types and constants from `./types` and validation helpers from `./validation`.
 
-Implement this exact API:
+> **[IMPLEMENTATION DIVERGENCE]** `getActivePhase` and `getReadyTasks` were never implemented. `getStatusCounts`, `hasActionableTasks`, `hasBlockedNonTerminalTasks` are re-exported from `./validation`.
+
+Implement this API:
 
 ```ts
 export function createEmptyBoard(): TaskBoardSnapshot;
@@ -447,24 +479,25 @@ export function writeTasks(board: TaskBoardSnapshot, inputTasks: Array<{ title: 
 export function applyEdits(board: TaskBoardSnapshot, edits: TaskEdit[], now: string): TaskBoardSnapshot;
 export function compileBoard(board: TaskBoardSnapshot, now: string): TaskBoardSnapshot;
 export function claimReadyTasks(board: TaskBoardSnapshot, count: number, now: string): { board: TaskBoardSnapshot; claimed: TaskRecord[] };
-export function getStatusCounts(board: TaskBoardSnapshot): Record<TaskStatus, number>;
-export function getActivePhase(board: TaskBoardSnapshot): number | null;
-export function getReadyTasks(board: TaskBoardSnapshot): TaskRecord[];
-export function hasActionableTasks(board: TaskBoardSnapshot): boolean;
-export function hasBlockedNonTerminalTasks(board: TaskBoardSnapshot): boolean;
+// [IMPLEMENTATION DIVERGENCE] These are re-exported from ./validation, not defined here:
+export { hasActionableTasks, hasBlockedNonTerminalTasks, getStatusCounts } from "./validation";
+// [IMPLEMENTATION DIVERGENCE] These were never implemented:
+// export function getActivePhase(board: TaskBoardSnapshot): number | null;
+// export function getReadyTasks(board: TaskBoardSnapshot): TaskRecord[];
 ```
 
 #### `createEmptyBoard`
 
-- Return `{ version: 1, nextTaskId: 1, tasks: [], phases: [], pendingPhasePrompt: undefined }`
+- Return `{ version: 1, tasks: [], phases: [], pendingPhasePrompt: undefined }`
+  > **[IMPLEMENTATION DIVERGENCE]** No `nextTaskId` field.
 
 #### `writeTasks`
 
 - Validate each input: title, prompt, profile must pass `isNonEmptyString` (trim all string inputs before validation); phase must pass `isValidPhase`
 - Validate total board tasks would not exceed `MAX_TASKS` (100)
-- Assign monotonic ids: `"task-1"`, `"task-2"`, etc., using `board.nextTaskId` as the counter
+- > **[IMPLEMENTATION DIVERGENCE]** IDs use phase-relative format: `t-{phase}.{index}` where `index` is the count of existing tasks in that phase + 1. Was planned as monotonic `"task-1"`, `"task-2"` using `board.nextTaskId`.
 - Each new task gets `dependencies: []`, `status: "draft"`, `createdAt: now`, `updatedAt: now`
-- Increment `nextTaskId` by the number of added tasks
+- > **[IMPLEMENTATION DIVERGENCE]** No `nextTaskId` to increment — IDs are deterministic from phase and existing task count.
 - Do NOT recompute phases (tasks are still `draft` — phases are computed at compile time)
 - Return new board (do not mutate input)
 
@@ -577,8 +610,8 @@ NOTE: Batches containing both structural edits (data/blockers) and advance/aband
 
 ### Acceptance Criteria
 
-- `createEmptyBoard()` returns `{ version: 1, nextTaskId: 1, tasks: [], phases: [] }`
-- `writeTasks` assigns `task-1`, `task-2`, etc. and initializes to `draft`
+- `createEmptyBoard()` returns `{ version: 1, tasks: [], phases: [] }` (no `nextTaskId`)
+- > **[IMPLEMENTATION DIVERGENCE]** `writeTasks` assigns `t-{phase}.{n}` IDs, not `task-1`, `task-2`
 - `compileBoard` moves `draft` → `configured` and computes `ready` states
 - `compileBoard` throws on cycles, invalid deps, empty board, or active tasks
 - `applyEdits` with `advance: implementing→reviewing` works
@@ -606,7 +639,13 @@ Steps 2, 3
 
 - `src/__tests__/setup.ts`
 - `src/__tests__/helpers/mocks.ts`
-- `src/__tests__/engine.test.ts`
+- `src/__tests__/helpers/engine-helpers.ts`
+- `src/__tests__/engine-write.test.ts`
+- `src/__tests__/engine-compile.test.ts`
+- `src/__tests__/engine-edits.test.ts`
+- `src/__tests__/engine-queries.test.ts`
+
+> **[IMPLEMENTATION DIVERGENCE]** Engine tests were split into 4 files by domain (`write`, `compile`, `edits`, `queries`) instead of a single `engine.test.ts`. An `engine-helpers.ts` file provides shared test utilities (`makeCompiledBoard`, `makeBoardWithStatuses`).
 
 ### What to Implement
 
@@ -775,18 +814,19 @@ Write comprehensive tests covering all engine invariants. Use `describe`/`it` bl
     - later phase tasks never become ready until earlier phase is terminal
     - when active phase becomes terminal (all done/abandoned), next phase activates
 
-Use a helper function in the test file to create a compiled board from input tasks to reduce boilerplate:
+Use a helper function in `src/__tests__/helpers/engine-helpers.ts` to create a compiled board from input tasks to reduce boilerplate:
 
 ```ts
+// [IMPLEMENTATION DIVERGENCE] IDs are `t-{phase}.{n}`, not `task-{i+1}`
 function makeCompiledBoard(tasks: Array<{ title: string; prompt: string; profile: string; phase: number; dependencies?: string[] }>): TaskBoardSnapshot {
   let board = createEmptyBoard();
-  const now = new Date().toISOString();
+  const now = "2025-01-01T00:00:00.000Z";
   board = writeTasks(board, tasks.map(({ title, prompt, profile, phase }) => ({ title, prompt, profile, phase })), now);
-  // Add dependencies via edit if provided
+  // Add dependencies via blockers edits if provided
   const edits: TaskEdit[] = [];
   tasks.forEach((t, i) => {
     if (t.dependencies && t.dependencies.length > 0) {
-      edits.push({ id: `task-${i + 1}`, type: "blockers", data: { dependencies: t.dependencies } });
+      edits.push({ id: board.tasks[i].id, type: "blockers", data: { dependencies: t.dependencies } });
     }
   });
   if (edits.length > 0) {
@@ -944,9 +984,11 @@ export function reconstructState(ctx: ExtensionContext): TaskBoardSnapshot {
   for (let i = branch.length - 1; i >= 0; i--) {
     const entry = branch[i];
     if (entry.type !== "custom") continue;
-    if (entry.customType !== CUSTOM_SNAPSHOT_TYPE) continue;
-    if (entry.data && isValidSnapshot(entry.data)) {
-      return JSON.parse(JSON.stringify(entry.data)) as TaskBoardSnapshot;
+    // [IMPLEMENTATION DIVERGENCE] Uses type assertion for customType/data access
+    if ((entry as { customType?: string }).customType !== CUSTOM_SNAPSHOT_TYPE) continue;
+    const data = (entry as { data?: unknown }).data;
+    if (data && isValidSnapshot(data)) {
+      return cloneBoard(data);
     }
   }
 
@@ -973,12 +1015,10 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
     return;
   }
 
-  const counts: Record<string, number> = {};
-  for (const t of snapshot.tasks) {
-    counts[t.status] = (counts[t.status] || 0) + 1;
-  }
+  // [IMPLEMENTATION DIVERGENCE] Uses getStatusCounts() from validation.ts for reliable zero-filled counts
+  const counts = getStatusCounts(snapshot);
 
-  const done = (counts["done"] || 0) + (counts["abandoned"] || 0);
+  const done = counts.done + counts.abandoned;
   const total = snapshot.tasks.length;
 
   const activePhase = snapshot.phases.find(p => p.status === "active");
@@ -1189,7 +1229,7 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   }
 
   lines.push("");
-  lines.push("Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → edit_tasks (advance) → done");
+  lines.push("Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → advance_tasks → done");
 
   return lines.join("\n");
 }
@@ -1255,11 +1295,14 @@ Step 2
 
 ### Files to Create
 
+- `src/schemas.ts` — [IMPLEMENTATION DIVERGENCE] Schema definitions were extracted from tools.ts into a separate module
 - `src/tools.ts`
 
 ### What to Implement
 
-Register five tools using the pi tool registration pattern. Each tool is a factory function that accepts `pi: ExtensionAPI` and returns a `ToolDefinition`.
+> **[IMPLEMENTATION DIVERGENCE]** 6 tools instead of 5. `advance_tasks` is a separate tool (not an `edit_tasks` type). `edit_tasks` has 3 types: `data`, `blockers`, `abandon` (no `advance`).
+
+Register six tools using the pi tool registration pattern. Each tool is a factory function that accepts `pi: ExtensionAPI` and returns a `ToolDefinition`.
 
 Key imports:
 ```ts
@@ -1297,6 +1340,8 @@ On error (thrown by engine), return error content. On success, return `formatBoa
 
 #### Tool 2: `edit_tasks`
 
+> **[IMPLEMENTATION DIVERGENCE]** `edit_tasks` has 3 types: `data`, `blockers`, `abandon`. The `advance` type was moved to a separate `advance_tasks` tool.
+
 Parameters schema using a union type:
 ```ts
 Type.Object({
@@ -1318,10 +1363,6 @@ Type.Object({
         data: Type.Object({
           dependencies: Type.Array(Type.String()),
         }),
-      }),
-      Type.Object({
-        id: Type.String(),
-        type: StringEnum(["advance"]),
       }),
       Type.Object({
         id: Type.String(),
@@ -1390,9 +1431,31 @@ Behavior (5-step pattern):
 5. Persist: `persistEntries(pi, event, result.board)`
 6. Update UI: `updateUI(ctx, result.board)`
 7. Return summary with claimed task details (id, title, prompt, profile, phase)
-8. Include explicit instruction: "Review each claimed task and advance through implementing → reviewing → done using edit_tasks."
+8. Include explicit instruction: "Review each claimed task and advance through implementing \u2192 reviewing \u2192 done using advance_tasks."
 
 Note: `claimReadyTasks` returns `{ board, claimed: [] }` when no ready tasks exist (does not throw). The caller must check `claimed.length` and return an appropriate error message.
+
+#### Tool 6: `advance_tasks`
+
+> **[IMPLEMENTATION DIVERGENCE]** This is a new tool not in the original plan. `advance` was originally an `edit_tasks` type.
+
+Parameters schema:
+```ts
+Type.Object({
+  ids: Type.Array(Type.String(), { description: "Task IDs to advance" }),
+})
+```
+
+Behavior:
+1. Get current board: `getBoard()`
+2. Map ids to `TaskEdit[]` with `type: "advance"`
+3. Call engine: `applyEdits(board, edits, now)`
+4. Detect phase completion, set pending phase prompt
+5. Check if advance warning should be shown (consecutive advance calls without other tool usage)
+6. Set new board: `setBoard(newBoard)`
+7. Persist event + snapshot entries
+8. Update UI
+9. Return summary including warning if applicable
 
 Each tool must implement `renderCall` and `renderResult` following the `pi-til-done` pattern.
 
@@ -1402,12 +1465,13 @@ Each tool must implement `renderCall` and `renderResult` following the `pi-til-d
 - `compile_tasks`: `theme.fg("toolTitle", theme.bold("compile_tasks"))`
 - `clear_tasks`: `theme.fg("toolTitle", theme.bold("clear_tasks"))`
 - `get_ready_tasks`: `theme.fg("toolTitle", theme.bold("get_ready_tasks ")) + theme.fg("muted", "(count: N)")`
+- `advance_tasks`: `theme.fg("toolTitle", theme.bold("advance_tasks ")) + theme.fg("muted", "(N tasks)")`
 
 `renderResult` for all tools: Render the board text in themed format, or error text in error color.
 
 ### Acceptance Criteria
 
-- All 5 tools are defined as factory functions accepting `pi: ExtensionAPI` and returning `ToolDefinition`
+- All 6 tools are defined as factory functions accepting `pi: ExtensionAPI` and returning `ToolDefinition`
 - Each tool has proper typebox schemas for parameters
 - Each tool calls the engine and handles errors gracefully
 - Each tool persists event + snapshot on success
@@ -1592,7 +1656,8 @@ export function registerEventHandlers(pi: ExtensionAPI): void {
 
 ### Acceptance Criteria
 
-- `registerEventHandlers` registers handlers for `session_start`, `session_tree`, `before_agent_start`, `agent_end`, and `input`
+- `registerEventHandlers` registers handlers for `session_start`, `session_tree`, `before_agent_start`, `agent_end`, `input`, and `tool_result` (6 handlers)
+  > **[IMPLEMENTATION DIVERGENCE]** `tool_result` handler was added to track consecutive `advance_tasks` calls for review-skip detection.
 - `session_start` reconstructs state from snapshot and updates UI
 - `session_tree` reconstructs state and updates UI
 - `before_agent_start` returns hidden context message when board is non-empty
@@ -1670,6 +1735,7 @@ import {
   createCompileTasksTool,
   createClearTasksTool,
   createGetReadyTasksTool,
+  createAdvanceTasksTool, // [IMPLEMENTATION DIVERGENCE] Added
 } from "./tools";
 
 export default function (pi: ExtensionAPI): void {
@@ -1681,6 +1747,7 @@ export default function (pi: ExtensionAPI): void {
   pi.registerTool(createCompileTasksTool(pi));
   pi.registerTool(createClearTasksTool(pi));
   pi.registerTool(createGetReadyTasksTool(pi));
+  pi.registerTool(createAdvanceTasksTool(pi)); // [IMPLEMENTATION DIVERGENCE] Added
 }
 ```
 

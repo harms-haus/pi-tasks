@@ -8,6 +8,8 @@ import { isValidSnapshot, cloneBoard, getStatusCounts } from "./validation";
 
 let board: TaskBoardSnapshot = createEmptyBoard();
 let autoContinueCount = 0;
+let lastToolWasAdvance = false;
+let advanceWarningPending = false;
 
 // ── State Accessors ──
 
@@ -32,10 +34,36 @@ export function incrementAutoContinue(): number {
   return ++autoContinueCount;
 }
 
+/** Returns whether the last tool result was from advance_tasks. */
+export function getLastToolWasAdvance(): boolean {
+  return lastToolWasAdvance;
+}
+
+/** Set the last-tool-was-advance flag. */
+export function setLastToolWasAdvance(value: boolean): void {
+  lastToolWasAdvance = value;
+}
+
+/** Check and consume the advance warning flag. Returns true if warning should be shown, then resets. */
+export function consumeAdvanceWarning(): boolean {
+  if (advanceWarningPending) {
+    advanceWarningPending = false;
+    return true;
+  }
+  return false;
+}
+
+/** Set the advance warning pending flag. */
+export function setAdvanceWarningPending(value: boolean): void {
+  advanceWarningPending = value;
+}
+
 /** Resets all mutable state. For testing only. */
 export function resetState(): void {
   board = createEmptyBoard();
   autoContinueCount = 0;
+  lastToolWasAdvance = false;
+  advanceWarningPending = false;
 }
 
 // ── State Reconstruction ──

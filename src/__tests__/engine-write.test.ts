@@ -10,7 +10,6 @@ describe("createEmptyBoard", () => {
   it("returns correct empty shape", () => {
     const board = createEmptyBoard();
     expect(board.version).toBe(1);
-    expect(board.nextTaskId).toBe(1);
     expect(board.tasks).toEqual([]);
     expect(board.phases).toEqual([]);
     expect(board.pendingPhasePrompt).toBeUndefined();
@@ -22,7 +21,7 @@ describe("createEmptyBoard", () => {
 // ═══════════════════════════════════════════
 
 describe("writeTasks", () => {
-  it("creates draft tasks with stable ids (task-1, task-2)", () => {
+  it("creates draft tasks with phase-relative ids (t-phase.index)", () => {
     const board = createEmptyBoard();
     const result = writeTasks(
       board,
@@ -34,8 +33,8 @@ describe("writeTasks", () => {
     );
 
     expect(result.tasks).toHaveLength(2);
-    expect(result.tasks[0].id).toBe("task-1");
-    expect(result.tasks[1].id).toBe("task-2");
+    expect(result.tasks[0].id).toBe("t-1.1");
+    expect(result.tasks[1].id).toBe("t-1.2");
     expect(result.tasks[0].status).toBe("draft");
     expect(result.tasks[1].status).toBe("draft");
   });
@@ -63,18 +62,21 @@ describe("writeTasks", () => {
     expect(result.tasks[0].dependencies).toEqual([]);
   });
 
-  it("increments nextTaskId", () => {
+  it("assigns independent indices per phase", () => {
     const board = createEmptyBoard();
     const result = writeTasks(
       board,
       [
         { title: "Task A", prompt: "Do A", profile: "coder", phase: 1 },
-        { title: "Task B", prompt: "Do B", profile: "coder", phase: 1 },
+        { title: "Task B", prompt: "Do B", profile: "coder", phase: 2 },
+        { title: "Task C", prompt: "Do C", profile: "coder", phase: 1 },
       ],
       NOW,
     );
 
-    expect(result.nextTaskId).toBe(3);
+    expect(result.tasks[0].id).toBe("t-1.1");
+    expect(result.tasks[1].id).toBe("t-2.1");
+    expect(result.tasks[2].id).toBe("t-1.2");
   });
 
   it("appends to existing board (does not replace)", () => {
@@ -90,20 +92,25 @@ describe("writeTasks", () => {
     expect(result.tasks).toHaveLength(2);
     expect(result.tasks[0].title).toBe("First");
     expect(result.tasks[1].title).toBe("Second");
-    expect(result.tasks[1].id).toBe("task-2");
-    expect(result.nextTaskId).toBe(3);
+    expect(result.tasks[1].id).toBe("t-2.1");
   });
 
-  it("continues id numbering from existing nextTaskId", () => {
-    const board = createEmptyBoard();
-    board.nextTaskId = 5;
-    const result = writeTasks(
+  it("continues phase-relative numbering from existing tasks", () => {
+    let board = createEmptyBoard();
+    board = writeTasks(
       board,
-      [{ title: "New Task", prompt: "P", profile: "c", phase: 1 }],
+      [
+        { title: "A", prompt: "P", profile: "c", phase: 1 },
+        { title: "B", prompt: "P", profile: "c", phase: 1 },
+      ],
       NOW,
     );
-    expect(result.tasks[0].id).toBe("task-5");
-    expect(result.nextTaskId).toBe(6);
+    const result = writeTasks(
+      board,
+      [{ title: "C", prompt: "P", profile: "c", phase: 1 }],
+      NOW,
+    );
+    expect(result.tasks[2].id).toBe("t-1.3");
   });
 
   it("rejects empty title", () => {
@@ -186,7 +193,7 @@ describe("writeTasks", () => {
       NOW,
     );
     expect(exact.tasks).toHaveLength(100);
-    expect(exact.nextTaskId).toBe(101);
+    expect(exact.tasks).toHaveLength(100);
   });
 
   it("does not mutate the input board", () => {

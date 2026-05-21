@@ -43,7 +43,7 @@ The agent uses these tools in sequence. Here's a typical workflow:
 2. edit_tasks      → set dependencies between tasks (type: "blockers")
 3. compile_tasks   → validate the board and activate phase 1
 4. get_ready_tasks → claim tasks that are ready to work on
-5. edit_tasks      → advance tasks: implementing → reviewing → done (type: "advance")
+5. advance_tasks   → advance tasks: implementing → reviewing → done
                      (repeat 4–5 until all tasks are done)
 ```
 
@@ -56,37 +56,37 @@ Agent: I'll break this feature into phased tasks.
 
 Task Board:
 
-── Phase 1 (active) ──
-○ [task-1] Phase 1 · Set up database schema
-○ [task-2] Phase 1 · Create API endpoints
-○ [task-3] Phase 1 · Write unit tests for API
+─── Phase 1 ───
+⚪ t-1.1: Set up database schema
+⚪ t-1.2: Create API endpoints
+⚪ t-1.3: Write unit tests for API
 
-── Phase 2 (pending) ──
-○ [task-4] Phase 2 · Build frontend components
-○ [task-5] Phase 2 · Integration tests
+─── Phase 2 ───
+⚪ t-2.1: Build frontend components
+⚪ t-2.2: Integration tests
 
-── Phase 3 (pending) ──
-○ [task-6] Phase 3 · End-to-end QA
+─── Phase 3 ───
+⚪ t-3.1: End-to-end QA
 
 Summary: 6 draft
 
-→ edit_tasks: task-5 blockers → [task-2, task-4]
+→ edit_tasks: t-2.2 blockers → [t-1.2, t-2.1]
 
 → compile_tasks
 
 Task Board:
 
-── Phase 1 (active) ──
-● [task-1] Phase 1 · Set up database schema
-● [task-2] Phase 1 · Create API endpoints
-● [task-3] Phase 1 · Write unit tests for API
+─── Phase 1 ───
+🟢 t-1.1: Set up database schema
+🟢 t-1.2: Create API endpoints
+🟢 t-1.3: Write unit tests for API
 
-── Phase 2 (pending) ──
-◔ [task-4] Phase 2 · Build frontend components
-◔ [task-5] Phase 2 · Integration tests → depends on [task-2, task-4]
+─── Phase 2 ───
+🔵 t-2.1: Build frontend components
+🔵 t-2.2: Integration tests → depends on t-1.2, t-2.1
 
-── Phase 3 (pending) ──
-◔ [task-6] Phase 3 · End-to-end QA
+─── Phase 3 ───
+🔵 t-3.1: End-to-end QA
 
 Summary: 3 ready, 3 configured
 
@@ -94,17 +94,21 @@ Summary: 3 ready, 3 configured
 
 Claimed 2 task(s).
 
-─── task-1: Set up database schema ───
-Phase: 1
-Profile: coder
-Prompt:
-  Create the database tables for ...
+▶️ t-1.1: Set up database schema  (coder)
+Create the database tables for ...
 
-─── task-2: Create API endpoints ───
-...
+▶️ t-1.2: Create API endpoints  (coder)
+Build REST endpoints for ...
+  ... (ctrl-o to expand)
 
-→ edit_tasks: advance task-1 (implementing → reviewing)
-→ edit_tasks: advance task-1 (reviewing → done)
+Review each claimed task and advance through
+implementing → reviewing → done using advance_tasks.
+
+→ advance_tasks: t-1.1
+  (implementing → reviewing)
+
+→ advance_tasks: t-1.1
+  (reviewing → done)
 
 ... Phase 2 unlocks when all Phase 1 tasks are done ...
 ```
@@ -135,7 +139,7 @@ Each task object:
 
 ### `edit_tasks`
 
-Batch-edit tasks on the board. Supports four edit types. Edits are atomic — if any validation fails, none are applied.
+Batch-edit tasks on the board. Supports three edit types. Edits are atomic — if any validation fails, none are applied.
 
 | Parameter | Type    | Required | Description                          |
 |-----------|---------|----------|--------------------------------------|
@@ -163,15 +167,6 @@ Structural edits (data/blockers) cannot be applied while any task is `implementi
 | `data.dependencies`  | `string[]` | Array of task IDs this task depends on |
 
 Validates against self-dependencies, duplicate entries, and references to non-existent tasks.
-
-**Type: `advance`** — progress task status
-
-| Field  | Type       | Description                                  |
-|--------|------------|----------------------------------------------|
-| `id`   | `string`   | Task ID                                      |
-| `type` | `"advance"`| Edit type                                    |
-
-Advances the task one step: `implementing` → `reviewing` → `done`. Can only be called on tasks in `implementing` or `reviewing` status.
 
 **Type: `abandon`** — mark task as abandoned
 
@@ -204,10 +199,28 @@ Claim ready tasks for implementation. Moves claimed tasks to `implementing` stat
 
 Tasks are ordered by phase ascending, then by creation order. Cannot claim while any task is `implementing` or `reviewing`.
 
+Claimed task output shows the first 3 lines of each task's prompt, followed by `... (ctrl-o to expand)` if the prompt is longer. The board display after claiming shows only the active phase.
+
 Error messages distinguish between:
 - **All tasks resolved** — board is complete
 - **Active tasks exist** — advance or complete them first
 - **Deadlock** — tasks remain but none are actionable; suggests resolving blockers
+
+### `advance_tasks`
+
+Advance tasks through their lifecycle: `implementing` → `reviewing` → `done`. Each call advances each task by one step.
+
+| Parameter | Type       | Required | Description                          |
+|-----------|------------|----------|--------------------------------------|
+| `ids`     | `string[]` | Yes      | Array of task IDs to advance        |
+
+Tasks must be in `implementing` or `reviewing` status. Duplicate IDs in the array are deduplicated.
+
+The board display after advancing shows only the active phase (or the full board if all tasks are terminal).
+
+**Double-advance warning:** If `advance_tasks` is called twice in a row without any other tool usage in between, a warning is injected reminding the agent to actually review the work before advancing to `done`:
+
+> ⚠️ Review should not be skipped. Please actually review the work before advancing to done.
 
 ### `clear_tasks`
 
@@ -221,15 +234,15 @@ draft ──→ configured ──→ ready ──→ implementing ──→ revi
                               └─── (any non-terminal) ──→ abandoned
 ```
 
-| Status         | Icon | Description                                                          |
-|----------------|------|----------------------------------------------------------------------|
-| `draft`        | `○`  | Initial state after `write_tasks`                                    |
-| `configured`   | `◔`  | Validated by `compile_tasks`; awaiting readiness                     |
-| `ready`        | `●`  | Phase is active and all dependencies are done; available to claim   |
-| `implementing` | `▶`  | Claimed via `get_ready_tasks`; actively being worked on             |
-| `reviewing`    | `◇`  | Advanced from `implementing`; awaiting final review                 |
-| `done`         | `✓`  | Advanced from `reviewing`; terminal state                           |
-| `abandoned`    | `✗`  | Explicitly skipped via `edit_tasks` (type: abandon); terminal state |
+| Status         | Icon  | Description                                                          |
+|----------------|-------|----------------------------------------------------------------------|
+| `draft`        | `⚪`  | Initial state after `write_tasks`                                    |
+| `configured`   | `🔵`  | Validated by `compile_tasks`; awaiting readiness                     |
+| `ready`        | `🟢`  | Phase is active and all dependencies are done; available to claim   |
+| `implementing` | `▶️`  | Claimed via `get_ready_tasks`; actively being worked on             |
+| `reviewing`    | `🔍`  | Advanced from `implementing`; awaiting final review                 |
+| `done`         | `✅`  | Advanced from `reviewing`; terminal state                           |
+| `abandoned`    | `❌`  | Explicitly skipped via `edit_tasks` (type: abandon); terminal state |
 
 Terminal statuses (`done`, `abandoned`) are permanent — tasks in these states cannot be edited or advanced.
 

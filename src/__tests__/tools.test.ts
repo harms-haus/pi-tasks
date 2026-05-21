@@ -7,8 +7,9 @@ import {
   createCompileTasksTool,
   createClearTasksTool,
   createGetReadyTasksTool,
+  createAdvanceTasksTool,
 } from "../tools";
-import { resetState } from "../state";
+import { resetState, setAdvanceWarningPending } from "../state";
 import { resetConfig } from "../config";
 import type { TaskBoardSnapshot } from "../types";
 
@@ -63,7 +64,7 @@ describe("write_tasks", () => {
     expect(r.content[0].text).toContain("Task A");
     expect(r.content[0].text).toContain("Task B");
     expect(r.details.snapshot.tasks).toHaveLength(2);
-    expect(r.details.snapshot.tasks[0].id).toBe("task-1");
+    expect(r.details.snapshot.tasks[0].id).toBe("t-1.1");
     expect(r.details.snapshot.tasks[0].status).toBe("draft");
     expect(r.details.error).toBeUndefined();
   });
@@ -94,7 +95,7 @@ describe("write_tasks", () => {
     expect(r.details.snapshot.tasks).toHaveLength(2);
     expect(r.details.snapshot.tasks[0].title).toBe("First");
     expect(r.details.snapshot.tasks[1].title).toBe("Second");
-    expect(r.details.snapshot.tasks[1].id).toBe("task-2");
+    expect(r.details.snapshot.tasks[1].id).toBe("t-2.1");
   });
 
   it("rejects empty title", async () => {
@@ -304,7 +305,7 @@ describe("edit_tasks - data", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "data", data: { title: "New Title" } }],
+        tasks: [{ id: "t-1.1", type: "data", data: { title: "New Title" } }],
       },
       ctx,
     );
@@ -334,11 +335,11 @@ describe("edit_tasks - data", () => {
     );
     await callExecute(compileTool, {}, ctx);
 
-    // Both are ready. Edit task-1's data — resets all non-terminal to draft
+    // Both are ready. Edit t-1.1's data — resets all non-terminal to draft
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "data", data: { title: "New A" } }],
+        tasks: [{ id: "t-1.1", type: "data", data: { title: "New A" } }],
       },
       ctx,
     );
@@ -367,12 +368,12 @@ describe("edit_tasks - data", () => {
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    // task-1 is now implementing
+    // t-1.1 is now implementing
 
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-2", type: "data", data: { title: "X" } }],
+        tasks: [{ id: "t-1.2", type: "data", data: { title: "X" } }],
       },
       ctx,
     );
@@ -400,7 +401,7 @@ describe("edit_tasks - data", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-999", type: "data", data: { title: "X" } }],
+        tasks: [{ id: "t-999.1", type: "data", data: { title: "X" } }],
       },
       ctx,
     );
@@ -450,14 +451,14 @@ describe("edit_tasks - blockers", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } }],
+        tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } }],
       },
       ctx,
     );
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[1].dependencies).toEqual(["task-1"]);
+    expect(r.details.snapshot.tasks[1].dependencies).toEqual(["t-1.1"]);
   });
 
   it("rejects self-dependency", async () => {
@@ -477,7 +478,7 @@ describe("edit_tasks - blockers", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "blockers", data: { dependencies: ["task-1"] } }],
+        tasks: [{ id: "t-1.1", type: "blockers", data: { dependencies: ["t-1.1"] } }],
       },
       ctx,
     );
@@ -507,7 +508,7 @@ describe("edit_tasks - blockers", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "blockers", data: { dependencies: ["task-999"] } }],
+        tasks: [{ id: "t-1.1", type: "blockers", data: { dependencies: ["t-999.1"] } }],
       },
       ctx,
     );
@@ -541,7 +542,7 @@ describe("edit_tasks - blockers", () => {
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-2", type: "blockers", data: { dependencies: [] } }],
+        tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: [] } }],
       },
       ctx,
     );
@@ -553,10 +554,10 @@ describe("edit_tasks - blockers", () => {
 });
 
 // ═══════════════════════════════════════════
-// 4. edit_tasks - advance
+// 4. advance_tasks tool
 // ═══════════════════════════════════════════
 
-describe("edit_tasks - advance", () => {
+describe("advance_tasks tool", () => {
   let api: ReturnType<typeof createMockAPI>["api"];
   let ctx: ReturnType<typeof createMockContext>;
 
@@ -568,28 +569,24 @@ describe("edit_tasks - advance", () => {
     ctx = createMockContext();
   });
 
-  it("implementing → reviewing succeeds", async () => {
+  it("advances implementing → reviewing", async () => {
     const writeTool = createWriteTasksTool(api);
     const compileTool = createCompileTasksTool(api);
     const getReadyTool = createGetReadyTasksTool(api);
-    const editTool = createEditTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
       writeTool,
-      {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
-      },
+      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    // task-1 is implementing
+    // t-1.1 is implementing
 
     const result = await callExecute(
-      editTool,
-      {
-        tasks: [{ id: "task-1", type: "advance" }],
-      },
+      advanceTool,
+      { ids: ["t-1.1"] },
       ctx,
     );
 
@@ -598,11 +595,12 @@ describe("edit_tasks - advance", () => {
     expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
   });
 
-  it("reviewing → done succeeds and recomputes readiness", async () => {
+  it("advances reviewing → done and recomputes readiness", async () => {
     const writeTool = createWriteTasksTool(api);
     const compileTool = createCompileTasksTool(api);
     const getReadyTool = createGetReadyTasksTool(api);
     const editTool = createEditTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
       writeTool,
@@ -618,34 +616,20 @@ describe("edit_tasks - advance", () => {
     // Set B's blockers to depend on A
     await callExecute(
       editTool,
-      {
-        tasks: [{ id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } }],
-      },
+      { tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } }] },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
     // A is ready, B is configured (blocked by A)
 
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    // task-1 implementing
+    // t-1.1 implementing
 
-    await callExecute(
-      editTool,
-      {
-        tasks: [{ id: "task-1", type: "advance" }],
-      },
-      ctx,
-    );
-    // task-1 reviewing
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 reviewing
 
-    const result = await callExecute(
-      editTool,
-      {
-        tasks: [{ id: "task-1", type: "advance" }],
-      },
-      ctx,
-    );
-    // task-1 done
+    const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 done
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
@@ -654,38 +638,63 @@ describe("edit_tasks - advance", () => {
     expect(r.details.snapshot.tasks[1].status).toBe("ready");
   });
 
-  it("rejects advance from wrong statuses (draft, configured, ready, done, abandoned)", async () => {
+  it("advances batch of tasks", async () => {
     const writeTool = createWriteTasksTool(api);
-    const editTool = createEditTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        tasks: [
+          { title: "A", prompt: "P", profile: "c", phase: 1 },
+          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        ],
       },
       ctx,
     );
-    // task-1 is draft (not compiled yet)
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 2 }, ctx);
+    // Both implementing
 
     const result = await callExecute(
-      editTool,
-      {
-        tasks: [{ id: "task-1", type: "advance" }],
-      },
+      advanceTool,
+      { ids: ["t-1.1", "t-1.2"] },
       ctx,
     );
-    const r = result as { details: { error?: string } };
-    expect(r.details.error).toBeDefined();
 
-    // Test from configured
-    resetState();
-    const mockApi2 = createMockAPI();
-    const writeTool2 = createWriteTasksTool(mockApi2.api);
-    const compileTool2 = createCompileTasksTool(mockApi2.api);
-    const editTool2 = createEditTasksTool(mockApi2.api);
+    const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
+    expect(r.details.error).toBeUndefined();
+    expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
+    expect(r.details.snapshot.tasks[1].status).toBe("reviewing");
+  });
+
+  it("errors on invalid status (draft)", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
-      writeTool2,
+      writeTool,
+      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
+      ctx,
+    );
+    // t-1.1 is draft (not compiled)
+
+    const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+
+    const r = result as { details: { error?: string } };
+    expect(r.details.error).toBeDefined();
+  });
+
+  it("errors on invalid status (configured/blocked)", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const editTool = createEditTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
+
+    await callExecute(
+      writeTool,
       {
         tasks: [
           { title: "A", prompt: "P", profile: "c", phase: 1 },
@@ -695,23 +704,71 @@ describe("edit_tasks - advance", () => {
       ctx,
     );
     await callExecute(
-      editTool2,
-      {
-        tasks: [{ id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } }],
-      },
+      editTool,
+      { tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } }] },
       ctx,
     );
-    await callExecute(compileTool2, {}, ctx);
+    await callExecute(compileTool, {}, ctx);
     // B is configured (blocked by A)
 
-    const r2 = await callExecute(
-      editTool2,
-      {
-        tasks: [{ id: "task-2", type: "advance" }],
-      },
+    const result = await callExecute(advanceTool, { ids: ["t-1.2"] }, ctx);
+
+    const r = result as { details: { error?: string } };
+    expect(r.details.error).toBeDefined();
+  });
+
+  it("errors on nonexistent task", async () => {
+    const advanceTool = createAdvanceTasksTool(api);
+
+    const result = await callExecute(advanceTool, { ids: ["t-999.1"] }, ctx);
+
+    const r = result as { details: { error?: string } };
+    expect(r.details.error).toBeDefined();
+  });
+
+  it("shows double-advance warning when advanceWarningPending is set", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
+
+    await callExecute(
+      writeTool,
+      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
       ctx,
     );
-    expect((r2 as { details: { error?: string } }).details.error).toBeDefined();
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    // t-1.1 implementing
+
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 reviewing
+
+    // Simulate the state where the event handler would flag double-advance
+    setAdvanceWarningPending(true);
+
+    const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 done
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { snapshot: TaskBoardSnapshot; error?: string };
+    };
+    expect(r.details.error).toBeUndefined();
+    expect(r.content[0].text).toContain("Review should not be skipped");
+    expect(r.details.snapshot.tasks[0].status).toBe("done");
+  });
+
+  it("renderCall shows task count", () => {
+    const advanceTool = createAdvanceTasksTool(api);
+    const theme = createMockTheme();
+    const rendered = (advanceTool as any).renderCall(
+      { ids: ["t-1.1", "t-1.2"] },
+      theme,
+    );
+    const text = rendered.toString();
+    expect(text).toContain("advance_tasks");
+    expect(text).toContain("2 tasks");
   });
 });
 
@@ -744,12 +801,12 @@ describe("edit_tasks - abandon", () => {
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
-    // task-1 is ready
+    // t-1.1 is ready
 
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "abandon" }],
+        tasks: [{ id: "t-1.1", type: "abandon" }],
       },
       ctx,
     );
@@ -774,12 +831,12 @@ describe("edit_tasks - abandon", () => {
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    // task-1 implementing
+    // t-1.1 implementing
 
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "abandon" }],
+        tasks: [{ id: "t-1.1", type: "abandon" }],
       },
       ctx,
     );
@@ -794,6 +851,7 @@ describe("edit_tasks - abandon", () => {
     const compileTool = createCompileTasksTool(api);
     const getReadyTool = createGetReadyTasksTool(api);
     const editTool = createEditTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
       writeTool,
@@ -804,13 +862,13 @@ describe("edit_tasks - abandon", () => {
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    await callExecute(editTool, { tasks: [{ id: "task-1", type: "advance" }] }, ctx); // → reviewing
-    await callExecute(editTool, { tasks: [{ id: "task-1", type: "advance" }] }, ctx); // → done
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx); // → reviewing
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx); // → done
 
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "abandon" }],
+        tasks: [{ id: "t-1.1", type: "abandon" }],
       },
       ctx,
     );
@@ -836,13 +894,13 @@ describe("edit_tasks - abandon", () => {
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
-    await callExecute(editTool, { tasks: [{ id: "task-1", type: "abandon" }] }, ctx);
+    await callExecute(editTool, { tasks: [{ id: "t-1.1", type: "abandon" }] }, ctx);
 
     // Try to abandon again
     const result = await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "abandon" }],
+        tasks: [{ id: "t-1.1", type: "abandon" }],
       },
       ctx,
     );
@@ -895,8 +953,8 @@ describe("edit_tasks - atomicity", () => {
       editTool,
       {
         tasks: [
-          { id: "task-1", type: "data", data: { title: "New A" } },
-          { id: "task-999", type: "data", data: { title: "Z" } },
+          { id: "t-1.1", type: "data", data: { title: "New A" } },
+          { id: "t-999.1", type: "data", data: { title: "Z" } },
         ],
       },
       ctx,
@@ -979,7 +1037,7 @@ describe("compile_tasks", () => {
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    // task-1 is implementing
+    // t-1.1 is implementing
 
     // Try to compile again — should fail
     const result = await callExecute(compileTool, {}, ctx);
@@ -1013,8 +1071,8 @@ describe("compile_tasks", () => {
       editTool,
       {
         tasks: [
-          { id: "task-1", type: "blockers", data: { dependencies: ["task-2"] } },
-          { id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } },
+          { id: "t-1.1", type: "blockers", data: { dependencies: ["t-1.2"] } },
+          { id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } },
         ],
       },
       ctx,
@@ -1073,7 +1131,7 @@ describe("clear_tasks", () => {
     expect(r.details.snapshot.phases).toEqual([]);
   });
 
-  it("resets nextTaskId to 1", async () => {
+  it("clears board and allows fresh task ids", async () => {
     const writeTool = createWriteTasksTool(api);
     const clearTool = createClearTasksTool(api);
 
@@ -1087,7 +1145,7 @@ describe("clear_tasks", () => {
 
     await callExecute(clearTool, {}, ctx);
 
-    // Write again — should start from task-1
+    // Write again — should start from t-1.1 since board is empty
     const result = await callExecute(
       writeTool,
       {
@@ -1097,9 +1155,8 @@ describe("clear_tasks", () => {
     );
 
     const r = result as { details: { snapshot: TaskBoardSnapshot } };
-    expect(r.details.snapshot.tasks[0].id).toBe("task-1");
+    expect(r.details.snapshot.tasks[0].id).toBe("t-1.1");
     expect(r.details.snapshot.tasks).toHaveLength(1);
-    expect(r.details.snapshot.nextTaskId).toBe(2);
   });
 });
 
@@ -1166,7 +1223,7 @@ describe("get_ready_tasks", () => {
     const result = await callExecute(getReadyTool, { count: 1 }, ctx);
 
     const r = result as { content: Array<{ type: string; text: string }> };
-    expect(r.content[0].text).toContain("task-1: Task A");
+    expect(r.content[0].text).toContain("t-1.1: Task A");
     expect(r.content[0].text).toContain("Implement feature X");
     expect(r.content[0].text).toContain("implementing → reviewing → done");
   });
@@ -1223,7 +1280,7 @@ describe("get_ready_tasks", () => {
     await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } }],
+        tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } }],
       },
       ctx,
     );
@@ -1233,7 +1290,7 @@ describe("get_ready_tasks", () => {
     await callExecute(
       editTool,
       {
-        tasks: [{ id: "task-1", type: "abandon" }],
+        tasks: [{ id: "t-1.1", type: "abandon" }],
       },
       ctx,
     );
@@ -1255,7 +1312,7 @@ describe("get_ready_tasks", () => {
     const writeTool = createWriteTasksTool(api);
     const compileTool = createCompileTasksTool(api);
     const getReadyTool = createGetReadyTasksTool(api);
-    const editTool = createEditTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
 
     await callExecute(
       writeTool,
@@ -1266,8 +1323,8 @@ describe("get_ready_tasks", () => {
     );
     await callExecute(compileTool, {}, ctx);
     await callExecute(getReadyTool, { count: 1 }, ctx);
-    await callExecute(editTool, { tasks: [{ id: "task-1", type: "advance" }] }, ctx); // → reviewing
-    await callExecute(editTool, { tasks: [{ id: "task-1", type: "advance" }] }, ctx); // → done
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx); // → reviewing
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx); // → done
 
     const result = await callExecute(getReadyTool, { count: 1 }, ctx);
 
@@ -1371,8 +1428,8 @@ describe("tool render functions", () => {
     const result = (tool as any).renderCall(
       {
         tasks: [
-          { id: "task-1", type: "advance" },
-          { id: "task-2", type: "advance" },
+          { id: "t-1.1", type: "data", data: { title: "X" } },
+          { id: "t-1.2", type: "data", data: { title: "Y" } },
         ],
       },
       theme,
@@ -1405,7 +1462,7 @@ describe("tool render functions", () => {
     const result = {
       content: [{ type: "text" as const, text: "Success message" }],
       details: {
-        snapshot: { version: 1, nextTaskId: 1, tasks: [], phases: [] } as TaskBoardSnapshot,
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
     const rendered = (tool as any).renderResult(
@@ -1421,7 +1478,7 @@ describe("tool render functions", () => {
     const result = {
       content: [{ type: "text" as const, text: "Some error" }],
       details: {
-        snapshot: { version: 1, nextTaskId: 1, tasks: [], phases: [] } as TaskBoardSnapshot,
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
         error: "Some error",
       },
     };

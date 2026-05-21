@@ -133,7 +133,6 @@ export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
   const obj = data as Record<string, unknown>;
   return (
     obj.version === 1 &&
-    typeof obj.nextTaskId === "number" &&
     Array.isArray(obj.tasks) &&
     Array.isArray(obj.phases)
   );

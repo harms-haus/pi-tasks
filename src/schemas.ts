@@ -37,10 +37,6 @@ export const EditTasksParams = Type.Object({
       }),
       Type.Object({
         id: Type.String(),
-        type: StringEnum(["advance"]),
-      }),
-      Type.Object({
-        id: Type.String(),
         type: StringEnum(["abandon"]),
       }),
     ]),
@@ -53,4 +49,8 @@ export const ClearTasksParams = Type.Object({});
 
 export const GetReadyTasksParams = Type.Object({
   count: Type.Integer({ description: "Number of tasks to claim (>= 1)", minimum: 1 }),
+});
+
+export const AdvanceTasksParams = Type.Object({
+  ids: Type.Array(Type.String(), { description: "Task IDs to advance" }),
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { TaskBoardSnapshot } from "../types";
 import { MAX_AUTO_CONTINUE } from "../types";
-import { setBoard, resetState, getBoard } from "../state";
+import { setBoard, resetState, getBoard, getLastToolWasAdvance, consumeAdvanceWarning, setAdvanceWarningPending } from "../state";
 import { createEmptyBoard, writeTasks, compileBoard, applyEdits, claimReadyTasks } from "../engine";
 import { registerEventHandlers } from "../events";
 import { createMockAPI, createMockContext } from "./helpers/mocks";
@@ -41,8 +41,8 @@ function makeBoardWithImplementingTask(): TaskBoardSnapshot {
 /** Create a board with one done task (all terminal). */
 function makeBoardWithDoneTask(): TaskBoardSnapshot {
   let board = makeBoardWithImplementingTask();
-  board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-  board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
+  board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+  board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
   return board;
 }
 
@@ -60,13 +60,13 @@ function makeBoardWithBlockedTask(): TaskBoardSnapshot {
   );
   board = applyEdits(
     board,
-    [{ id: "task-1", type: "blockers", data: { dependencies: ["task-2"] } }],
+    [{ id: "t-1.1", type: "blockers", data: { dependencies: ["t-1.2"] } }],
     NOW,
   );
   board = compileBoard(board, NOW);
   // A is configured (depends on B), B is ready
   // Abandon B → A is configured but dep is not satisfied
-  board = applyEdits(board, [{ id: "task-2", type: "abandon" }], NOW);
+  board = applyEdits(board, [{ id: "t-1.2", type: "abandon" }], NOW);
   return board;
 }
 
@@ -91,7 +91,8 @@ describe("registerEventHandlers", () => {
     expect(registeredEvents).toContain("before_agent_start");
     expect(registeredEvents).toContain("agent_end");
     expect(registeredEvents).toContain("input");
-    expect(mockObj.on.mock.calls).toHaveLength(5);
+    expect(registeredEvents).toContain("tool_result");
+    expect(mockObj.on.mock.calls).toHaveLength(6);
   });
 });
 
@@ -1023,5 +1024,114 @@ describe("session_start clears countdown", () => {
     // Advance time — no message should be sent
     vi.advanceTimersByTime(5000);
     expect(mockAPI.sendUserMessage).not.toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════
+// 14. tool_result handler (double-usage detection)
+// ═══════════════════════════════════════════
+
+describe("tool_result handler", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let mockAPI: ReturnType<typeof createMockAPI>;
+
+  const mockAdvanceResult = {
+    type: "tool_result" as const,
+    toolCallId: "call-1",
+    toolName: "advance_tasks",
+  };
+  const mockOtherResult = {
+    type: "tool_result" as const,
+    toolCallId: "call-2",
+    toolName: "bash",
+  };
+
+  beforeEach(() => {
+    resetState();
+    mockAPI = createMockAPI();
+    api = mockAPI.api;
+    registerEventHandlers(api);
+  });
+
+  it("consecutive advance_tasks sets warning flag", () => {
+    const toolResultHandler = getHandler(mockAPI, "tool_result");
+
+    // First advance — sets lastToolWasAdvance but no warning
+    toolResultHandler(mockAdvanceResult);
+    expect(getLastToolWasAdvance()).toBe(true);
+    expect(consumeAdvanceWarning()).toBe(false);
+
+    // Second consecutive advance — triggers warning
+    toolResultHandler(mockAdvanceResult);
+    expect(consumeAdvanceWarning()).toBe(true);
+    // Warning is consumed, so second call returns false
+    expect(consumeAdvanceWarning()).toBe(false);
+  });
+
+  it("non-advance tool resets tracking", () => {
+    const toolResultHandler = getHandler(mockAPI, "tool_result");
+
+    // First advance
+    toolResultHandler(mockAdvanceResult);
+    expect(getLastToolWasAdvance()).toBe(true);
+
+    // Non-advance tool resets tracking
+    toolResultHandler(mockOtherResult);
+    expect(getLastToolWasAdvance()).toBe(false);
+
+    // Another advance — first of a new streak, no warning
+    toolResultHandler(mockAdvanceResult);
+    expect(consumeAdvanceWarning()).toBe(false);
+  });
+
+  it("session_start resets tracking", () => {
+    const toolResultHandler = getHandler(mockAPI, "tool_result");
+
+    // Set up tracking state
+    toolResultHandler(mockAdvanceResult);
+    setAdvanceWarningPending(true);
+    expect(getLastToolWasAdvance()).toBe(true);
+
+    // session_start resets it
+    const sessionStartHandler = getHandler(mockAPI, "session_start");
+    const ctx = createMockContext();
+    sessionStartHandler({}, ctx);
+
+    expect(getLastToolWasAdvance()).toBe(false);
+    expect(consumeAdvanceWarning()).toBe(false);
+  });
+
+  it("session_tree resets tracking", () => {
+    const toolResultHandler = getHandler(mockAPI, "tool_result");
+
+    // Set up tracking state
+    toolResultHandler(mockAdvanceResult);
+    setAdvanceWarningPending(true);
+    expect(getLastToolWasAdvance()).toBe(true);
+
+    // session_tree resets it
+    const sessionTreeHandler = getHandler(mockAPI, "session_tree");
+    const ctx = createMockContext();
+    sessionTreeHandler({}, ctx);
+
+    expect(getLastToolWasAdvance()).toBe(false);
+    expect(consumeAdvanceWarning()).toBe(false);
+  });
+
+  it("input resets tracking", () => {
+    const toolResultHandler = getHandler(mockAPI, "tool_result");
+
+    // Set up tracking state
+    toolResultHandler(mockAdvanceResult);
+    setAdvanceWarningPending(true);
+    expect(getLastToolWasAdvance()).toBe(true);
+
+    // input resets it
+    const inputHandler = getHandler(mockAPI, "input");
+    const ctx = createMockContext();
+    inputHandler({}, ctx);
+
+    expect(getLastToolWasAdvance()).toBe(false);
+    expect(consumeAdvanceWarning()).toBe(false);
   });
 });

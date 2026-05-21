@@ -19,7 +19,7 @@ describe("compileBoard", () => {
     // A task with unsatisfied deps stays configured
     const board2 = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["task-1"] },
+      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["t-1.1"] },
     ]);
     expect(board2.tasks[1].status).toBe("configured");
   });
@@ -59,7 +59,7 @@ describe("compileBoard", () => {
   it("leaves configured tasks as configured when deps are not done", () => {
     const board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["task-1"] },
+      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["t-1.1"] },
     ]);
 
     // A has no deps → ready. B depends on A which is not done → configured
@@ -85,8 +85,8 @@ describe("compileBoard", () => {
     board = applyEdits(
       board,
       [
-        { id: "task-1", type: "blockers", data: { dependencies: ["task-2"] } },
-        { id: "task-2", type: "blockers", data: { dependencies: ["task-1"] } },
+        { id: "t-1.1", type: "blockers", data: { dependencies: ["t-1.2"] } },
+        { id: "t-1.2", type: "blockers", data: { dependencies: ["t-1.1"] } },
       ],
       NOW,
     );
@@ -99,17 +99,16 @@ describe("compileBoard", () => {
     // with invalid deps directly.
     const board = createEmptyBoard();
     board.tasks.push({
-      id: "task-1",
+      id: "t-1.1",
       title: "A",
       prompt: "P",
       profile: "c",
       phase: 1,
-      dependencies: ["task-999"],
+      dependencies: ["t-999.1"],
       status: "draft",
       createdAt: NOW,
       updatedAt: NOW,
     });
-    board.nextTaskId = 2;
 
     expect(() => compileBoard(board, NOW)).toThrow(/non-existent dependencies/);
   });
@@ -134,7 +133,7 @@ describe("compileBoard", () => {
     // After compile, A is ready (phase 1 active), B is configured (phase 2 pending)
     const board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 2, dependencies: ["task-1"] },
+      { title: "B", prompt: "P", profile: "c", phase: 2, dependencies: ["t-1.1"] },
     ]);
 
     expect(board.tasks[0].status).toBe("ready");

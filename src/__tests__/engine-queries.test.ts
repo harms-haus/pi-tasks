@@ -43,8 +43,8 @@ describe("claimReadyTasks", () => {
 
     const result = claimReadyTasks(board, 5, NOW);
     expect(result.claimed).toHaveLength(2);
-    expect(result.claimed[0].id).toBe("task-2"); // phase 1, created first
-    expect(result.claimed[1].id).toBe("task-3"); // phase 1, created second
+    expect(result.claimed[0].id).toBe("t-1.1"); // phase 1, created first
+    expect(result.claimed[1].id).toBe("t-1.2"); // phase 1, created second
   });
 
   it("moves claimed tasks to implementing", () => {
@@ -66,7 +66,7 @@ describe("claimReadyTasks", () => {
       { title: "B", prompt: "P", profile: "c", phase: 1 },
     ]);
     board = claimReadyTasks(board, 1, NOW).board;
-    // task-1 is implementing, task-2 is ready
+    // t-1.1 is implementing, t-1.2 is ready
     expect(board.tasks[0].status).toBe("implementing");
 
     expect(() => claimReadyTasks(board, 1, NOW)).toThrow(
@@ -78,8 +78,8 @@ describe("claimReadyTasks", () => {
     // All done board — claimReadyTasks should return empty claimed.
     let doneBoard = makeCompiledBoard([{ title: "Only", prompt: "P", profile: "c", phase: 1 }]);
     doneBoard = claimReadyTasks(doneBoard, 1, NOW).board;
-    doneBoard = applyEdits(doneBoard, [{ id: "task-1", type: "advance" }], NOW);
-    doneBoard = applyEdits(doneBoard, [{ id: "task-1", type: "advance" }], NOW);
+    doneBoard = applyEdits(doneBoard, [{ id: "t-1.1", type: "advance" }], NOW);
+    doneBoard = applyEdits(doneBoard, [{ id: "t-1.1", type: "advance" }], NOW);
     const finalResult = claimReadyTasks(doneBoard, 1, NOW);
     expect(finalResult.claimed).toEqual([]);
   });
@@ -129,10 +129,10 @@ describe("getStatusCounts", () => {
     ]);
     // All 3 ready. Claim A, advance to done.
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW); // A done
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW); // A done
     // B and C should now be ready (or already were)
-    board = applyEdits(board, [{ id: "task-3", type: "abandon" }], NOW); // C abandoned
+    board = applyEdits(board, [{ id: "t-1.3", type: "abandon" }], NOW); // C abandoned
 
     const counts = getStatusCounts(board);
     expect(counts.draft).toBe(0);
@@ -188,8 +188,8 @@ describe("Phase gating", () => {
 
     // Phase 1 active, A ready. Claim and complete A.
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW); // → reviewing
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW); // → done
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW); // → reviewing
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW); // → done
 
     // Phase 1 completed, phase 2 activated. B should be ready.
     expect(board.tasks[0].status).toBe("done");
@@ -205,7 +205,7 @@ describe("Phase gating", () => {
     ]);
 
     // Abandon A
-    board = applyEdits(board, [{ id: "task-1", type: "abandon" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
 
     // Phase 1 completed (all terminal), phase 2 activated
     expect(board.tasks[0].status).toBe("abandoned");
@@ -223,11 +223,11 @@ describe("Phase gating", () => {
 
     // Claim and complete A
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW); // A done
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW); // A done
 
     // B is ready. Abandon B.
-    board = applyEdits(board, [{ id: "task-2", type: "abandon" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.2", type: "abandon" }], NOW);
 
     // Phase 1 all terminal, phase 2 active, C ready
     expect(board.tasks[2].status).toBe("ready");
@@ -247,22 +247,22 @@ describe("Phase gating", () => {
 
     // Complete phase 1
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
     expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(2);
     expect(board.tasks[1].status).toBe("ready");
 
     // Complete phase 2
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-2", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-2", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], NOW);
     expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(3);
     expect(board.tasks[2].status).toBe("ready");
 
     // Complete phase 3
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-3", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-3", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-3.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-3.1", type: "advance" }], NOW);
     expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBeNull(); // all done
     expect(board.phases.every((p) => p.status === "completed")).toBe(true);
   });
@@ -277,8 +277,8 @@ describe("Phase gating", () => {
 
     // Complete phase 1
     board = claimReadyTasks(board, 1, phase1Time).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], phase1Time);
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], phase1Time);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], phase1Time);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], phase1Time);
 
     const phase1Record = board.phases.find((p) => p.phase === 1);
     expect(phase1Record?.status).toBe("completed");
@@ -287,8 +287,8 @@ describe("Phase gating", () => {
     // Complete phase 2 at a later time
     const phase2Time = "2025-06-20T18:00:00.000Z";
     board = claimReadyTasks(board, 1, phase2Time).board;
-    board = applyEdits(board, [{ id: "task-2", type: "advance" }], phase2Time);
-    board = applyEdits(board, [{ id: "task-2", type: "advance" }], phase2Time);
+    board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], phase2Time);
+    board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], phase2Time);
 
     // Phase 1's completedAt should be preserved
     const phase1Again = board.phases.find((p) => p.phase === 1);
@@ -301,7 +301,7 @@ describe("Phase gating", () => {
   it("task in later phase with all deps done stays configured until its phase activates", () => {
     const board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 2, dependencies: ["task-1"] },
+      { title: "B", prompt: "P", profile: "c", phase: 2, dependencies: ["t-1.1"] },
     ]);
 
     // A is ready (phase 1 active, no deps). B is configured (phase 2 pending).
@@ -330,25 +330,25 @@ describe("hasActionableTasks / hasBlockedNonTerminalTasks", () => {
   it("hasActionableTasks returns false when all tasks terminal", () => {
     let board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     board = claimReadyTasks(board, 1, NOW).board;
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
-    board = applyEdits(board, [{ id: "task-1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
     expect(hasActionableTasks(board)).toBe(false);
   });
 
   it("hasBlockedNonTerminalTasks returns true when tasks are blocked", () => {
     let board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["task-1"] },
+      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["t-1.1"] },
     ]);
 
     // Abandon A — B's dep is unsatisfied, B is non-terminal with no actionable tasks
-    board = applyEdits(board, [{ id: "task-1", type: "abandon" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
     expect(hasBlockedNonTerminalTasks(board)).toBe(true);
   });
 
   it("hasBlockedNonTerminalTasks returns false when all tasks terminal", () => {
     let board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
-    board = applyEdits(board, [{ id: "task-1", type: "abandon" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
     expect(hasBlockedNonTerminalTasks(board)).toBe(false);
   });
 });
