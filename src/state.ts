@@ -129,8 +129,5 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
       activeLines.push(`[${t.id}] ${t.title}`);
     }
   }
-  ctx.ui.setStatus(
-    "til-done-active",
-    activeLines.length > 0 ? activeLines.join("\n") : undefined,
-  );
+  ctx.ui.setStatus("til-done-active", activeLines.length > 0 ? activeLines.join("\n") : undefined);
 }
