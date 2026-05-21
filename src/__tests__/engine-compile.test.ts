@@ -76,10 +76,18 @@ describe("compileBoard", () => {
     let board = createEmptyBoard();
     board = writeTasks(
       board,
-      [
-        { title: "A", prompt: "P", profile: "c", phase: 1 },
-        { title: "B", prompt: "P", profile: "c", phase: 1 },
-      ],
+      {
+        mode: "replace",
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
+        ],
+      },
       NOW,
     );
     board = applyEdits(
@@ -142,7 +150,14 @@ describe("compileBoard", () => {
 
   it("does not mutate the input board", () => {
     let board = createEmptyBoard();
-    board = writeTasks(board, [{ title: "A", prompt: "P", profile: "c", phase: 1 }], NOW);
+    board = writeTasks(
+      board,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      NOW,
+    );
     const frozen = JSON.parse(JSON.stringify(board));
     compileBoard(board, NOW);
     expect(board).toEqual(frozen);
@@ -151,12 +166,12 @@ describe("compileBoard", () => {
   it("computes phases for all phase numbers present", () => {
     const board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
-      { title: "B", prompt: "P", profile: "c", phase: 3 },
-      { title: "C", prompt: "P", profile: "c", phase: 5 },
+      { title: "B", prompt: "P", profile: "c", phase: 2 },
+      { title: "C", prompt: "P", profile: "c", phase: 3 },
     ]);
 
     expect(board.phases).toHaveLength(3);
-    expect(board.phases.map((p) => p.phase)).toEqual([1, 3, 5]);
+    expect(board.phases.map((p) => p.phase)).toEqual([1, 2, 3]);
     expect(board.phases[0].status).toBe("active");
     expect(board.phases[1].status).toBe("pending");
     expect(board.phases[2].status).toBe("pending");

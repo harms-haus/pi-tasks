@@ -4,6 +4,12 @@ import { getStatusCounts } from "./validation";
 
 // ── Plain-Text Formatting (for LLM tool output) ──
 
+/** Returns a phase label string including the title if available. */
+function phaseLabel(board: TaskBoardSnapshot, phaseNum: number): string {
+  const rec = board.phases.find((p) => p.phase === phaseNum);
+  return rec?.title ? `Phase ${phaseNum}: ${rec.title}` : `Phase ${phaseNum}`;
+}
+
 /** Returns the plain-text icon for a task status. */
 function getStatusIcon(status: TaskStatus): string {
   return STATUS_ICONS[status];
@@ -33,7 +39,7 @@ export function formatBoardText(
     : [...new Set(board.tasks.map((t) => t.phase))].sort((a, b) => a - b);
 
   for (const phase of phases) {
-    lines.push(`─── Phase ${phase} ───`);
+    lines.push(`─── ${phaseLabel(board, phase)} ───`);
     const phaseTasks = board.tasks.filter((t) => t.phase === phase);
     for (const task of phaseTasks) {
       let line = formatTaskLine(task);
@@ -62,7 +68,7 @@ export function formatSummaryLine(board: TaskBoardSnapshot): string {
   const done = board.tasks.filter((t) => t.status === "done" || t.status === "abandoned").length;
   const activePhase = board.phases.find((p) => p.status === "active");
   return activePhase
-    ? `Phase ${activePhase.phase} · ${done}/${total} done`
+    ? `${phaseLabel(board, activePhase.phase)} · ${done}/${total} done`
     : `${done}/${total} done`;
 }
 
@@ -87,7 +93,7 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   const lines: string[] = ["[PHASED TASKS ACTIVE]", ""];
 
   const activePhase = board.phases.find((p) => p.status === "active");
-  lines.push(`Active Phase: ${activePhase ? activePhase.phase : "none"}`);
+  lines.push(`Active Phase: ${activePhase ? phaseLabel(board, activePhase.phase) : "none"}`);
 
   // Counts by status
   const counts = getStatusCounts(board);
@@ -172,7 +178,7 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
       "Inspect dependencies and phase gating. Use edit_tasks to resolve blockers, then compile_tasks.",
       "",
       "Blocked tasks:",
-      ...nonTerminal.map((t) => `  [${t.id}] ${t.title} (${t.status}, Phase ${t.phase})`),
+      ...nonTerminal.map((t) => `  [${t.id}] ${t.title} (${t.status}, ${phaseLabel(board, t.phase)})`),
     ].join("\n");
   }
 
@@ -181,5 +187,6 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
 
 /** Format the "all done" terminal message. */
 export function formatAllDoneMessage(board: TaskBoardSnapshot): string {
-  return `All tasks resolved. Phase ${board.phases.length > 0 ? board.phases[board.phases.length - 1].phase : 0} complete.`;
+  const lastPhase = board.phases.length > 0 ? board.phases[board.phases.length - 1].phase : 0;
+  return `All tasks resolved. ${phaseLabel(board, lastPhase)} complete.`;
 }

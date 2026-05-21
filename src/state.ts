@@ -119,7 +119,11 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   const total = snapshot.tasks.length;
 
   const activePhase = snapshot.phases.find((p) => p.status === "active");
-  const phaseLabel = activePhase ? `Phase ${activePhase.phase}` : "No active phase";
+  const phaseLabel = activePhase
+    ? activePhase.title
+      ? `Phase ${activePhase.phase}: ${activePhase.title}`
+      : `Phase ${activePhase.phase}`
+    : "No active phase";
 
   ctx.ui.setStatus("til-done", `${done}/${total} - ${phaseLabel}`);
 

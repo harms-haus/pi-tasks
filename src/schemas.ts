@@ -4,14 +4,22 @@ import { Type } from "typebox";
 // ── Schemas ──
 
 export const WriteTasksParams = Type.Object({
-  tasks: Type.Array(
+  mode: StringEnum(["replace", "append"], {
+    description: "'replace' clears the board before writing; 'append' adds to existing tasks",
+  }),
+  phases: Type.Array(
     Type.Object({
-      title: Type.String({ description: "Short task title" }),
-      prompt: Type.String({ description: "Detailed implementation instructions" }),
-      profile: Type.String({ description: "Agent profile name for task delegation" }),
-      phase: Type.Integer({ description: "Phase number (>= 1)", minimum: 1 }),
+      title: Type.String({ description: "Short phase title" }),
+      tasks: Type.Array(
+        Type.Object({
+          title: Type.String({ description: "Short task title" }),
+          prompt: Type.String({ description: "Detailed implementation instructions" }),
+          profile: Type.String({ description: "Agent profile name for task delegation" }),
+        }),
+        { description: "Tasks in this phase (at least 1)", minItems: 1 },
+      ),
     }),
-    { description: "Tasks to add to the board" },
+    { description: "Phases to write to the board", minItems: 1 },
   ),
 });
 

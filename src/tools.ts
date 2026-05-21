@@ -94,7 +94,7 @@ function renderColoredBoardResult(text: string, _snapshot: TaskBoardSnapshot, th
   const lines = text.split("\n");
   const colored = lines
     .map((line) => {
-      if (/^─── Phase \d+ ───/.test(line)) {
+      if (/^─── Phase \d+/.test(line)) {
         return theme.fg("accent", theme.bold(line));
       }
       const taskLineMatch = line.match(/^(\S+\s+)(t-\d+\.\d+:\s)(.*)/);
@@ -122,19 +122,19 @@ export function createWriteTasksTool(
     name: "write_tasks",
     label: "Write Tasks",
     description:
-      "Add tasks to the phased task board. Each task requires a title, prompt, profile, and phase number (>= 1). Tasks are created in 'draft' status. After writing, use compile_tasks to validate dependencies and activate phases.",
+      "Add tasks to the phased task board. Provide phases (each with a title and tasks) and a mode ('replace' to clear the board first, 'append' to add to existing tasks). Phases are numbered automatically from array position. Tasks are created in 'draft' status. After writing, use compile_tasks to validate dependencies and activate phases.",
     parameters: WriteTasksParams,
     promptSnippet:
       "Phased task board: write, edit (data/blockers/advance/abandon), compile, claim ready tasks",
     promptGuidelines: [
-      "Use write_tasks to add tasks to the board. Each task needs title, prompt, profile, and phase.",
-      "Use edit_tasks with type 'data' to modify task title/prompt/profile/phase.",
-      "Use edit_tasks with type 'blockers' to set task dependencies.",
-      "Use compile_tasks to validate and activate the board after writing/editing.",
-      "Use get_ready_tasks to claim tasks that are ready to work on.",
-      "Use advance_tasks to move tasks through implementing → reviewing → done.",
-      "Use edit_tasks with type 'abandon' to skip tasks no longer needed.",
-      "Tasks in later phases only become ready after earlier phases are complete.",
+      "Use write_tasks to add tasks grouped by phase, then compile_tasks to validate and activate them.",
+      "write_tasks accepts a mode ('replace' or 'append') and an array of phases, each with a title and tasks.",
+      "Each task needs a title, prompt, and profile. Phase numbers are assigned automatically from array position.",
+      "Use 'replace' mode to start fresh (clears the board). Use 'append' mode to add phases to an existing board.",
+      "Use edit_tasks to set dependencies between tasks after writing.",
+      "Tasks are written in 'draft' status. Use compile_tasks to transition them to 'configured' or 'ready'.",
+      "Phases gate execution: tasks in later phases only become ready after earlier phases are complete.",
+      "Maximum 100 tasks allowed on the board.",
     ],
 
     // eslint-disable-next-line @typescript-eslint/require-await
@@ -143,24 +143,52 @@ export function createWriteTasksTool(
       const now = new Date().toISOString();
 
       try {
-        const newBoard = writeTasks(board, params.tasks, now);
+        const newBoard = writeTasks(
+          board,
+          {
+            mode: params.mode as "replace" | "append",
+            phases: params.phases.map((p) => ({
+              title: p.title,
+              tasks: p.tasks.map((t) => ({
+                title: t.title,
+                prompt: t.prompt,
+                profile: t.profile,
+              })),
+            })),
+          },
+          now,
+        );
         setBoard(newBoard);
 
+        const totalNewTasks = params.phases.reduce(
+          (sum: number, p: { tasks: unknown[] }) => sum + p.tasks.length,
+          0,
+        );
+        const newPhaseNumbers = newBoard.phases
+          .slice(-params.phases.length)
+          .map((p) => p.phase);
         const event: TaskWorkflowEvent = {
           type: "write_tasks",
-          tasks: newBoard.tasks.slice(-params.tasks.length).map((t) => ({
-            id: t.id,
-            title: t.title,
-            prompt: t.prompt,
-            profile: t.profile,
-            phase: t.phase,
+          mode: params.mode as "replace" | "append",
+          phases: params.phases.map((p: (typeof params.phases)[number], i: number) => ({
+            phase: newPhaseNumbers[i] ?? i + 1,
+            title: p.title.trim(),
+            tasks: newBoard.tasks
+              .filter((t) => t.phase === (newPhaseNumbers[i] ?? i + 1))
+              .map((t) => ({
+                id: t.id,
+                title: t.title,
+                prompt: t.prompt,
+                profile: t.profile,
+                phase: t.phase,
+              })),
           })),
         };
         persistEntries(pi, event, newBoard);
         updateUI(ctx, newBoard);
 
         return makeSuccessResult(
-          `Added ${params.tasks.length} task(s) to the board.\n\n${formatBoardText(newBoard)}`,
+          `Added ${totalNewTasks} task(s) to the board.\n\n${formatBoardText(newBoard)}`,
           newBoard,
         );
       } catch (err) {
@@ -169,9 +197,13 @@ export function createWriteTasksTool(
     },
 
     renderCall(args, theme) {
+      const phases = args.phases as Array<{ tasks: Array<unknown> }> | undefined;
+      const totalTasks = phases
+        ? phases.reduce((sum: number, p) => sum + p.tasks.length, 0)
+        : 0;
       return new Text(
         theme.fg("toolTitle", theme.bold("write_tasks ")) +
-          theme.fg("muted", `(${args.tasks.length} items)`),
+          theme.fg("muted", `(${totalTasks} items)`),
         0,
         0,
       );

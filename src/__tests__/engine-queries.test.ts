@@ -34,12 +34,13 @@ describe("claimReadyTasks", () => {
       { title: "B", prompt: "P", profile: "c", phase: 1 },
       { title: "C", prompt: "P", profile: "c", phase: 1 },
     ]);
+    // Helper groups by phase and sorts: tasks become [B(t-1.1), C(t-1.2), A(t-2.1)]
     // Phase 1 is active. Phase 2 is pending.
     // Only phase 1 tasks are ready: B and C.
     // Phase 2 task A stays configured.
-    expect(board.tasks[0].status).toBe("configured"); // phase 2, not active
-    expect(board.tasks[1].status).toBe("ready");
-    expect(board.tasks[2].status).toBe("ready");
+    expect(board.tasks[0].status).toBe("ready"); // B, phase 1, active
+    expect(board.tasks[1].status).toBe("ready"); // C, phase 1, active
+    expect(board.tasks[2].status).toBe("configured"); // A, phase 2, pending
 
     const result = claimReadyTasks(board, 5, NOW);
     expect(result.claimed).toHaveLength(2);

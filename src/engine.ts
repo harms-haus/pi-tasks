@@ -19,56 +19,91 @@ export function createEmptyBoard(): TaskBoardSnapshot {
 // ── Write Tasks ──
 
 function validateTaskInput(
-  input: { title: string; prompt: string; profile: string; phase: number },
+  input: { title: string; prompt: string; profile: string },
   index: number,
+  phaseNum: number,
 ): void {
   const trimmedTitle = input.title.trim();
   const trimmedPrompt = input.prompt.trim();
   const trimmedProfile = input.profile.trim();
 
   if (!isNonEmptyString(trimmedTitle)) {
-    throw new Error(`Task ${index + 1}: title must be a non-empty string`);
+    throw new Error(`Phase ${phaseNum} task ${index + 1}: title must be a non-empty string`);
   }
   if (!isNonEmptyString(trimmedPrompt)) {
-    throw new Error(`Task ${index + 1}: prompt must be a non-empty string`);
+    throw new Error(`Phase ${phaseNum} task ${index + 1}: prompt must be a non-empty string`);
   }
   if (!isNonEmptyString(trimmedProfile)) {
-    throw new Error(`Task ${index + 1}: profile must be a non-empty string`);
-  }
-  if (!isValidPhase(input.phase)) {
-    throw new Error(`Task ${index + 1}: phase must be an integer >= 1, got ${String(input.phase)}`);
+    throw new Error(`Phase ${phaseNum} task ${index + 1}: profile must be a non-empty string`);
   }
 }
 
 export function writeTasks(
   board: TaskBoardSnapshot,
-  inputTasks: Array<{ title: string; prompt: string; profile: string; phase: number }>,
+  input: {
+    mode: "replace" | "append";
+    phases: Array<{
+      title: string;
+      tasks: Array<{ title: string; prompt: string; profile: string }>;
+    }>;
+  },
   now: string,
 ): TaskBoardSnapshot {
-  const result = cloneBoard(board);
+  let result: TaskBoardSnapshot;
+  let startPhase: number;
 
-  if (result.tasks.length + inputTasks.length > MAX_TASKS) {
+  if (input.mode === "replace") {
+    if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
+      throw new Error("Cannot replace board while tasks are implementing or reviewing.");
+    }
+    result = createEmptyBoard();
+    startPhase = 1;
+  } else {
+    result = cloneBoard(board);
+    startPhase =
+      result.tasks.length > 0
+        ? Math.max(...result.tasks.map((t) => t.phase)) + 1
+        : 1;
+  }
+
+  const totalNewTasks = input.phases.reduce((sum, p) => sum + p.tasks.length, 0);
+  if (result.tasks.length + totalNewTasks > MAX_TASKS) {
     throw new Error(
-      `Cannot add ${inputTasks.length} tasks: would exceed maximum of ${MAX_TASKS} (currently ${result.tasks.length})`,
+      `Cannot add ${totalNewTasks} tasks: would exceed maximum of ${MAX_TASKS} (currently ${result.tasks.length})`,
     );
   }
 
-  for (let i = 0; i < inputTasks.length; i++) {
-    validateTaskInput(inputTasks[i], i);
+  for (let i = 0; i < input.phases.length; i++) {
+    const inputPhase = input.phases[i];
+    const phaseNum = startPhase + i;
 
-    const input = inputTasks[i];
-    const phaseCount = result.tasks.filter((t) => t.phase === input.phase).length;
-    const id = `t-${input.phase}.${phaseCount + 1}`;
-    result.tasks.push({
-      id,
-      title: input.title.trim(),
-      prompt: input.prompt.trim(),
-      profile: input.profile.trim(),
-      phase: input.phase,
-      dependencies: [],
-      status: "draft",
-      createdAt: now,
-      updatedAt: now,
+    if (!isNonEmptyString(inputPhase.title.trim())) {
+      throw new Error(`Phase ${i + 1}: title must be a non-empty string`);
+    }
+
+    for (let j = 0; j < inputPhase.tasks.length; j++) {
+      validateTaskInput(inputPhase.tasks[j], j, phaseNum);
+
+      const taskInput = inputPhase.tasks[j];
+      const phaseCount = result.tasks.filter((t) => t.phase === phaseNum).length;
+      const id = `t-${phaseNum}.${phaseCount + 1}`;
+      result.tasks.push({
+        id,
+        title: taskInput.title.trim(),
+        prompt: taskInput.prompt.trim(),
+        profile: taskInput.profile.trim(),
+        phase: phaseNum,
+        dependencies: [],
+        status: "draft",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    result.phases.push({
+      phase: phaseNum,
+      status: "pending" as const,
+      title: inputPhase.title.trim(),
     });
   }
 
@@ -94,6 +129,7 @@ function recomputePhasesAndReadiness(
           phase,
           status: "completed" as const,
           completedAt: oldPhase?.completedAt ?? now,
+          title: oldPhase?.title,
         };
       });
     board.phases = phases;
@@ -139,12 +175,13 @@ function buildPhasesArray(
           phase,
           status: "completed" as const,
           completedAt: oldPhase?.completedAt ?? now,
+          title: oldPhase?.title,
         };
       }
       if (phase === activePhase) {
-        return { phase, status: "active" as const };
+        return { phase, status: "active" as const, title: oldPhase?.title };
       }
-      return { phase, status: "pending" as const };
+      return { phase, status: "pending" as const, title: oldPhase?.title };
     });
 }
 

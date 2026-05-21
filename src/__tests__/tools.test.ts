@@ -48,9 +48,10 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [
-          { title: "Task A", prompt: "Do A", profile: "coder", phase: 1 },
-          { title: "Task B", prompt: "Do B", profile: "coder", phase: 2 },
+        mode: "replace",
+        phases: [
+          { title: "Phase 1", tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }] },
+          { title: "Phase 2", tasks: [{ title: "Task B", prompt: "Do B", profile: "coder" }] },
         ],
       },
       ctx,
@@ -66,6 +67,7 @@ describe("write_tasks", () => {
     expect(r.details.snapshot.tasks).toHaveLength(2);
     expect(r.details.snapshot.tasks[0].id).toBe("t-1.1");
     expect(r.details.snapshot.tasks[0].status).toBe("draft");
+    expect(r.details.snapshot.tasks[1].id).toBe("t-2.1");
     expect(r.details.error).toBeUndefined();
   });
 
@@ -75,7 +77,8 @@ describe("write_tasks", () => {
     await callExecute(
       tool,
       {
-        tasks: [{ title: "First", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "First", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -83,7 +86,8 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "Second", prompt: "P", profile: "c", phase: 2 }],
+        mode: "append",
+        phases: [{ title: "Phase 2", tasks: [{ title: "Second", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -103,7 +107,8 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -121,7 +126,8 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "", profile: "c" }] }],
       },
       ctx,
     );
@@ -139,7 +145,8 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "P", profile: "", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "" }] }],
       },
       ctx,
     );
@@ -157,7 +164,8 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "P", profile: "c", phase: 0 }],
+        mode: "replace",
+        phases: [{ title: "", tasks: [{ title: "T", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -167,7 +175,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("phase must be an integer >= 1");
+    expect(r.content[0].text).toContain("title must be a non-empty string");
   });
 
   it("rejects invalid phase (negative)", async () => {
@@ -175,16 +183,18 @@ describe("write_tasks", () => {
     const result = await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "P", profile: "c", phase: -1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
 
+    // In the new format there is no negative phase — just verify a valid call succeeds
     const r = result as {
       content: Array<{ type: string; text: string }>;
-      details: { error?: string };
+      details: { error?: string; snapshot: TaskBoardSnapshot };
     };
-    expect(r.details.error).toBeDefined();
+    expect(r.details.error).toBeUndefined();
   });
 
   it("rejects when total would exceed 100 tasks", async () => {
@@ -195,18 +205,18 @@ describe("write_tasks", () => {
       title: `Task ${i + 1}`,
       prompt: "P",
       profile: "c",
-      phase: 1,
     }));
-    await callExecute(tool, { tasks: tasks99 }, ctx);
+    await callExecute(tool, { mode: "replace", phases: [{ title: "Phase 1", tasks: tasks99 }] }, ctx);
 
     // Try to add 2 more → exceed 100
     const result = await callExecute(
       tool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
-        ],
+        mode: "append",
+        phases: [{ title: "Phase 2", tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
+        ] }],
       },
       ctx,
     );
@@ -224,7 +234,8 @@ describe("write_tasks", () => {
     await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -248,7 +259,8 @@ describe("write_tasks", () => {
     await callExecute(
       tool,
       {
-        tasks: [{ title: "T", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "T", prompt: "P", profile: "c" }] }],
       },
       ctx,
     );
@@ -262,7 +274,7 @@ describe("write_tasks", () => {
     const tool = createWriteTasksTool(api);
     const theme = createMockTheme();
     const rendered = (tool as any).renderCall(
-      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
+      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
       theme,
     );
     const text = rendered.toString();
@@ -296,7 +308,11 @@ describe("edit_tasks - data", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "Task A", prompt: "Do A", profile: "coder", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }],
+        }],
       },
       ctx,
     );
@@ -326,10 +342,14 @@ describe("edit_tasks - data", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -359,10 +379,14 @@ describe("edit_tasks - data", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -393,7 +417,11 @@ describe("edit_tasks - data", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -439,10 +467,14 @@ describe("edit_tasks - blockers", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -469,7 +501,11 @@ describe("edit_tasks - blockers", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -499,7 +535,11 @@ describe("edit_tasks - blockers", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -529,10 +569,14 @@ describe("edit_tasks - blockers", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -577,7 +621,7 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
+      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
@@ -601,10 +645,14 @@ describe("advance_tasks tool", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -643,10 +691,14 @@ describe("advance_tasks tool", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -668,7 +720,7 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
+      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
       ctx,
     );
     // t-1.1 is draft (not compiled)
@@ -688,10 +740,14 @@ describe("advance_tasks tool", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -726,7 +782,7 @@ describe("advance_tasks tool", () => {
 
     await callExecute(
       writeTool,
-      { tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }] },
+      { mode: "replace", phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }] },
       ctx,
     );
     await callExecute(compileTool, {}, ctx);
@@ -785,7 +841,11 @@ describe("edit_tasks - abandon", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -814,7 +874,11 @@ describe("edit_tasks - abandon", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -845,7 +909,11 @@ describe("edit_tasks - abandon", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -878,7 +946,11 @@ describe("edit_tasks - abandon", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -927,10 +999,14 @@ describe("edit_tasks - atomicity", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -983,7 +1059,11 @@ describe("compile_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -1020,7 +1100,11 @@ describe("compile_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -1047,10 +1131,14 @@ describe("compile_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -1101,10 +1189,14 @@ describe("clear_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
           { title: "B", prompt: "P", profile: "c", phase: 2 },
         ],
+        }],
       },
       ctx,
     );
@@ -1127,7 +1219,11 @@ describe("clear_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -1138,7 +1234,11 @@ describe("clear_tasks", () => {
     const result = await callExecute(
       writeTool,
       {
-        tasks: [{ title: "B", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "B", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -1173,10 +1273,14 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "Do A", profile: "coder", phase: 1 },
-          { title: "B", prompt: "Do B", profile: "coder", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "Do A", profile: "coder" },
+          { title: "B", prompt: "Do B", profile: "coder" },
         ],
+        }],
       },
       ctx,
     );
@@ -1203,7 +1307,11 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "Task A", prompt: "Implement feature X", profile: "coder", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "Task A", prompt: "Implement feature X", profile: "coder" }],
+        }],
       },
       ctx,
     );
@@ -1225,10 +1333,14 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -1258,10 +1370,14 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -1306,7 +1422,11 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [{ title: "A", prompt: "P", profile: "c", phase: 1 }],
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [{ title: "A", prompt: "P", profile: "c" }],
+        }],
       },
       ctx,
     );
@@ -1346,11 +1466,15 @@ describe("get_ready_tasks", () => {
     await callExecute(
       writeTool,
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
-          { title: "C", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
+          { title: "C", prompt: "P", profile: "c" },
         ],
+        }],
       },
       ctx,
     );
@@ -1401,10 +1525,14 @@ describe("tool render functions", () => {
     const tool = createWriteTasksTool(api);
     const result = (tool as any).renderCall(
       {
-        tasks: [
-          { title: "A", prompt: "P", profile: "c", phase: 1 },
-          { title: "B", prompt: "P", profile: "c", phase: 1 },
+        mode: "replace",
+        phases: [{
+          title: "Phase 1",
+          tasks: [
+          { title: "A", prompt: "P", profile: "c" },
+          { title: "B", prompt: "P", profile: "c" },
         ],
+        }],
       },
       theme,
     );

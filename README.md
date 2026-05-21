@@ -39,7 +39,7 @@ Or add as a local extension in your project's `.pi/extensions` directory.
 The agent uses these tools in sequence. Here's a typical workflow:
 
 ```
-1. write_tasks     → define tasks with titles, prompts, profiles, and phase numbers
+1. write_tasks     → define phases (each with a title and tasks) and a mode ('replace' or 'append')
 2. edit_tasks      → set dependencies between tasks (type: "blockers")
 3. compile_tasks   → validate the board and activate phase 1
 4. get_ready_tasks → claim tasks that are ready to work on
@@ -52,20 +52,20 @@ The agent uses these tools in sequence. Here's a typical workflow:
 ```
 Agent: I'll break this feature into phased tasks.
 
-→ write_tasks: 6 tasks across 3 phases
+→ write_tasks: mode=replace, 3 phases, 6 tasks
 
 Task Board:
 
-─── Phase 1 ───
+─── Phase 1: Setup ───
 ⚪ t-1.1: Set up database schema
 ⚪ t-1.2: Create API endpoints
 ⚪ t-1.3: Write unit tests for API
 
-─── Phase 2 ───
+─── Phase 2: Implementation ───
 ⚪ t-2.1: Build frontend components
 ⚪ t-2.2: Integration tests
 
-─── Phase 3 ───
+─── Phase 3: QA ───
 ⚪ t-3.1: End-to-end QA
 
 Summary: 6 draft
@@ -76,16 +76,16 @@ Summary: 6 draft
 
 Task Board:
 
-─── Phase 1 ───
+─── Phase 1: Setup ───
 🟢 t-1.1: Set up database schema
 🟢 t-1.2: Create API endpoints
 🟢 t-1.3: Write unit tests for API
 
-─── Phase 2 ───
+─── Phase 2: Implementation ───
 🔵 t-2.1: Build frontend components
 🔵 t-2.2: Integration tests → depends on t-1.2, t-2.1
 
-─── Phase 3 ───
+─── Phase 3: QA ───
 🔵 t-3.1: End-to-end QA
 
 Summary: 3 ready, 3 configured
@@ -117,26 +117,35 @@ implementing → reviewing → done using advance_tasks.
 
 ### `write_tasks`
 
-Add tasks to the board. Each task is created in `draft` status.
+Add tasks to the board grouped by phase. Each task is created in `draft` status.
 
-| Parameter | Type    | Required | Description                  |
-| --------- | ------- | -------- | ---------------------------- |
-| `tasks`   | `array` | Yes      | Array of task objects to add |
+| Parameter | Type     | Required | Description                                                                                     |
+| --------- | -------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `mode`    | `string` | Yes      | `"replace"` clears the board before writing; `"append"` adds phases to an existing board       |
+| `phases`  | `array`  | Yes      | Array of phase objects (min 1). Phase numbers are auto-assigned from array position (1, 2, …)  |
+
+Each phase object:
+
+| Field   | Type     | Required | Description                             |
+| ------- | -------- | -------- | --------------------------------------- |
+| `title` | `string` | Yes      | Short phase title (e.g. "Setup")        |
+| `tasks` | `array`  | Yes      | Tasks in this phase (at least 1)        |
 
 Each task object:
 
-| Field     | Type      | Required | Description                          |
-| --------- | --------- | -------- | ------------------------------------ |
-| `title`   | `string`  | Yes      | Short task title                     |
-| `prompt`  | `string`  | Yes      | Detailed implementation instructions |
-| `profile` | `string`  | Yes      | Agent profile name for delegation    |
-| `phase`   | `integer` | Yes      | Phase number (≥ 1)                   |
+| Field     | Type     | Required | Description                          |
+| --------- | -------- | -------- | ------------------------------------ |
+| `title`   | `string` | Yes      | Short task title                     |
+| `prompt`  | `string` | Yes      | Detailed implementation instructions |
+| `profile` | `string` | Yes      | Agent profile name for delegation    |
 
 **Constraints:**
 
 - Maximum 100 tasks per board (`MAX_TASKS`)
-- Title, prompt, and profile must be non-empty strings
-- Phase must be an integer ≥ 1
+- Phase title, task title, prompt, and profile must be non-empty strings
+- Each phase must contain at least 1 task
+- `mode: "replace"` cannot be used while tasks are `implementing` or `reviewing`
+- `mode: "append"` auto-computes the starting phase number as `max(existing phases) + 1`
 
 ### `edit_tasks`
 

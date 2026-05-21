@@ -17,6 +17,10 @@
 
 ### Changed
 
+- **`write_tasks` schema restructured**: parameter schema changed from a flat `tasks` array (with per-task `phase` field) to a nested `phases` array where each phase has `title` and `tasks` properties; phase numbers are now auto-assigned from array position instead of specified per-task
+- **`write_tasks` gains `mode` parameter**: `"replace"` clears the board before writing (rejects if any tasks are `implementing`/`reviewing`), `"append"` adds tasks to the existing board
+- **Phase titles**: each phase now carries a short title stored in `PhaseRecord`, persisted in board snapshots, and displayed in the UI and status bar
+- Validation error messages from `write_tasks` now include phase context for easier debugging
 - Task IDs now use `t-{phase}.{index}` format (e.g., `t-1.1`, `t-2.3`) instead of `task-{N}`
 - `edit_tasks` no longer supports `type: "advance"` — use the new `advance_tasks` tool instead
 - Board rendering: phase headers use `─── Phase N ───` format, task lines use `{emoji} {id}: {title}` format

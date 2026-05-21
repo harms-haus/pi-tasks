@@ -34,7 +34,14 @@ function getHandler(
 /** Create a board with one task in "ready" status (actionable). */
 function makeBoardWithReadyTask(): TaskBoardSnapshot {
   let board = createEmptyBoard();
-  board = writeTasks(board, [{ title: "Task A", prompt: "Do A", profile: "coder", phase: 1 }], NOW);
+  board = writeTasks(
+    board,
+    {
+      mode: "replace",
+      phases: [{ title: "Phase 1", tasks: [{ title: "Task A", prompt: "Do A", profile: "coder" }] }],
+    },
+    NOW,
+  );
   return compileBoard(board, NOW);
 }
 
@@ -59,10 +66,18 @@ function makeBoardWithBlockedTask(): TaskBoardSnapshot {
   let board = createEmptyBoard();
   board = writeTasks(
     board,
-    [
-      { title: "A", prompt: "Do A", profile: "coder", phase: 1 },
-      { title: "B", prompt: "Do B", profile: "coder", phase: 1 },
-    ],
+    {
+      mode: "replace",
+      phases: [
+        {
+          title: "Phase 1",
+          tasks: [
+            { title: "A", prompt: "Do A", profile: "coder" },
+            { title: "B", prompt: "Do B", profile: "coder" },
+          ],
+        },
+      ],
+    },
     NOW,
   );
   board = applyEdits(

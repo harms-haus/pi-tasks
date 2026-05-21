@@ -25,9 +25,28 @@ export function makeCompiledBoard(
   }>,
 ): TaskBoardSnapshot {
   let board = createEmptyBoard();
+
+  // Group tasks by phase number, preserving order within each phase
+  const phaseGroups = new Map<number, Array<{ title: string; prompt: string; profile: string }>>();
+  const phaseOrder: number[] = [];
+  for (const t of tasks) {
+    if (!phaseGroups.has(t.phase)) {
+      phaseGroups.set(t.phase, []);
+      phaseOrder.push(t.phase);
+    }
+    phaseGroups.get(t.phase)!.push({ title: t.title, prompt: t.prompt, profile: t.profile });
+  }
+  phaseOrder.sort((a, b) => a - b);
+
   board = writeTasks(
     board,
-    tasks.map(({ title, prompt, profile, phase }) => ({ title, prompt, profile, phase })),
+    {
+      mode: "replace",
+      phases: phaseOrder.map((pn) => ({
+        title: `Phase ${pn}`,
+        tasks: phaseGroups.get(pn)!,
+      })),
+    },
     NOW,
   );
 

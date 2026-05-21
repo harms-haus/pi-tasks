@@ -57,7 +57,14 @@ describe("applyEdits — advance", () => {
 
   it("rejects advance from draft", () => {
     let board = createEmptyBoard();
-    board = writeTasks(board, [{ title: "A", prompt: "P", profile: "c", phase: 1 }], NOW);
+    board = writeTasks(
+      board,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      NOW,
+    );
 
     expect(() => applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW)).toThrow(
       /Cannot advance task/,
@@ -127,7 +134,14 @@ describe("applyEdits — advance", () => {
 describe("applyEdits — abandon", () => {
   it("succeeds from draft", () => {
     let board = createEmptyBoard();
-    board = writeTasks(board, [{ title: "A", prompt: "P", profile: "c", phase: 1 }], NOW);
+    board = writeTasks(
+      board,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      NOW,
+    );
     const result = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
     expect(result.tasks[0].status).toBe("abandoned");
   });

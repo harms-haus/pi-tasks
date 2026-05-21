@@ -27,6 +27,7 @@ export interface PhaseRecord {
   phase: number;
   status: "pending" | "active" | "completed";
   completedAt?: string;
+  title?: string;
 }
 
 // ── Board Snapshot ──
@@ -46,12 +47,17 @@ export interface TaskBoardSnapshot {
 export type TaskWorkflowEvent =
   | {
       type: "write_tasks";
-      tasks: Array<{
-        id: string;
-        title: string;
-        prompt: string;
-        profile: string;
+      mode: "replace" | "append";
+      phases: Array<{
         phase: number;
+        title: string;
+        tasks: Array<{
+          id: string;
+          title: string;
+          prompt: string;
+          profile: string;
+          phase: number;
+        }>;
       }>;
     }
   | {
