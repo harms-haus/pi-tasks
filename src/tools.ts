@@ -26,7 +26,12 @@ import {
 } from "./engine";
 import { getBoard, setBoard, persistEntries, updateUI, consumeAdvanceWarning } from "./state";
 import { loadConfig, resolvePhasePrompt } from "./config";
-import { formatBoardText, formatSummaryLine, formatAllDoneMessage, formatClaimedTaskDetails } from "./formatting";
+import {
+  formatBoardText,
+  formatSummaryLine,
+  formatAllDoneMessage,
+  formatClaimedTaskDetails,
+} from "./formatting";
 
 // ── Details Type ──
 
@@ -85,32 +90,28 @@ async function checkAndSetPhaseCompletion(
 
 // ── Shared Result Renderer ──
 
-function renderColoredBoardResult(
-  text: string,
-  _snapshot: TaskBoardSnapshot,
-  theme: Theme,
-): Text {
-  const lines = text.split('\n');
-  const colored = lines.map(line => {
-    if (/^─── Phase \d+ ───/.test(line)) {
-      return theme.fg("accent", theme.bold(line));
-    }
-    const taskLineMatch = line.match(/^(\S+\s+)(t-\d+\.\d+:\s)(.*)/);
-    if (taskLineMatch) {
-      return taskLineMatch[1] + theme.fg("muted", taskLineMatch[2]) + taskLineMatch[3];
-    }
-    if (line.includes('→ depends on')) {
-      return line.replace(/(t-\d+\.\d+)/g, (m) => theme.fg("muted", m));
-    }
-    if (line.startsWith('Summary:')) {
-      return theme.fg("muted", line);
-    }
-    return line;
-  }).join('\n');
+function renderColoredBoardResult(text: string, _snapshot: TaskBoardSnapshot, theme: Theme): Text {
+  const lines = text.split("\n");
+  const colored = lines
+    .map((line) => {
+      if (/^─── Phase \d+ ───/.test(line)) {
+        return theme.fg("accent", theme.bold(line));
+      }
+      const taskLineMatch = line.match(/^(\S+\s+)(t-\d+\.\d+:\s)(.*)/);
+      if (taskLineMatch) {
+        return taskLineMatch[1] + theme.fg("muted", taskLineMatch[2]) + taskLineMatch[3];
+      }
+      if (line.includes("→ depends on")) {
+        return line.replace(/(t-\d+\.\d+)/g, (m) => theme.fg("muted", m));
+      }
+      if (line.startsWith("Summary:")) {
+        return theme.fg("muted", line);
+      }
+      return line;
+    })
+    .join("\n");
   return new Text(colored, 0, 0);
 }
-
-
 
 // ── Tool 1: write_tasks ──
 
@@ -255,11 +256,12 @@ export function createEditTasksTool(
         updateUI(ctx, newBoard);
 
         const summary = formatSummaryLine(newBoard);
-        const hasStructuralEdits = edits.some(e => e.type === "data" || e.type === "blockers");
-        const allTerminal = newBoard.tasks.every(t => TERMINAL_STATUSES.has(t.status));
-        const boardText = (hasStructuralEdits || allTerminal)
-          ? formatBoardText(newBoard)
-          : formatBoardText(newBoard, { activePhaseOnly: true });
+        const hasStructuralEdits = edits.some((e) => e.type === "data" || e.type === "blockers");
+        const allTerminal = newBoard.tasks.every((t) => TERMINAL_STATUSES.has(t.status));
+        const boardText =
+          hasStructuralEdits || allTerminal
+            ? formatBoardText(newBoard)
+            : formatBoardText(newBoard, { activePhaseOnly: true });
         return makeSuccessResult(
           `Applied ${edits.length} edit(s). ${summary}\n\n${boardText}`,
           newBoard,
@@ -491,10 +493,10 @@ export function createAdvanceTasksTool(
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const board = getBoard();
       const now = new Date().toISOString();
-      const beforePhases = board.phases.map(p => ({ ...p }));
+      const beforePhases = board.phases.map((p) => ({ ...p }));
 
       const uniqueIds = [...new Set(params.ids)];
-      const edits: TaskEdit[] = uniqueIds.map(id => ({ id, type: "advance" as const }));
+      const edits: TaskEdit[] = uniqueIds.map((id) => ({ id, type: "advance" as const }));
 
       try {
         const newBoard = applyEdits(board, edits, now);
@@ -505,22 +507,23 @@ export function createAdvanceTasksTool(
         setBoard(newBoard);
 
         for (const edit of edits) {
-          const original = board.tasks.find(t => t.id === edit.id);
-          const updated = newBoard.tasks.find(t => t.id === edit.id);
-          const event: TaskWorkflowEvent = (original && updated)
-            ? {
-                type: "advance_task",
-                id: edit.id,
-                from: original.status as "implementing" | "reviewing",
-                to: updated.status as "reviewing" | "done",
-              }
-            : { type: "advance_task", id: edit.id, from: "implementing", to: "reviewing" };
+          const original = board.tasks.find((t) => t.id === edit.id);
+          const updated = newBoard.tasks.find((t) => t.id === edit.id);
+          const event: TaskWorkflowEvent =
+            original && updated
+              ? {
+                  type: "advance_task",
+                  id: edit.id,
+                  from: original.status as "implementing" | "reviewing",
+                  to: updated.status as "reviewing" | "done",
+                }
+              : { type: "advance_task", id: edit.id, from: "implementing", to: "reviewing" };
           pi.appendEntry(CUSTOM_EVENT_TYPE, event);
         }
         pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(newBoard));
         updateUI(ctx, newBoard);
 
-        const allTerminal = newBoard.tasks.every(t => TERMINAL_STATUSES.has(t.status));
+        const allTerminal = newBoard.tasks.every((t) => TERMINAL_STATUSES.has(t.status));
         const boardText = allTerminal
           ? formatBoardText(newBoard)
           : formatBoardText(newBoard, { activePhaseOnly: true });

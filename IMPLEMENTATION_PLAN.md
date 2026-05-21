@@ -8,6 +8,7 @@
 > Key divergences are noted inline with `[IMPLEMENTATION DIVERGENCE]` markers. See the source code for the current canonical behavior.
 >
 > **Summary of major divergences:**
+>
 > 1. **Task IDs**: Format is `t-{phase}.{index}` (phase-relative), not `task-N` monotonic. No `nextTaskId` field in `TaskBoardSnapshot`.
 > 2. **6 tools** instead of 5: `advance_tasks` is a separate tool, not an `edit_tasks` type.
 > 3. **`edit_tasks` has 3 types**: `data`, `blockers`, `abandon` — no `advance`.
@@ -56,14 +57,7 @@ Mirror the structure from `pi-til-done/package.json` exactly, with these specifi
   "pi": {
     "extensions": ["./src/index.ts"]
   },
-  "files": [
-    "src/**/*.ts",
-    "!src/__tests__/**",
-    "docs/",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE"
-  ],
+  "files": ["src/**/*.ts", "!src/__tests__/**", "docs/", "README.md", "CHANGELOG.md", "LICENSE"],
   "scripts": {
     "lint": "eslint src/",
     "test": "vitest run",
@@ -201,12 +195,24 @@ export interface TaskBoardSnapshot {
 // ── Event Types ──
 
 export type TaskWorkflowEvent =
-  | { type: "write_tasks"; tasks: Array<{ id: string; title: string; prompt: string; profile: string; phase: number }> }
-  | { type: "edit_task_data"; id: string; data: Partial<Pick<TaskRecord, "title" | "prompt" | "profile" | "phase">> }
+  | {
+      type: "write_tasks";
+      tasks: Array<{ id: string; title: string; prompt: string; profile: string; phase: number }>;
+    }
+  | {
+      type: "edit_task_data";
+      id: string;
+      data: Partial<Pick<TaskRecord, "title" | "prompt" | "profile" | "phase">>;
+    }
   | { type: "edit_task_blockers"; id: string; dependencies: string[] }
   | { type: "compile_tasks" }
   | { type: "claim_ready_tasks"; ids: string[] }
-  | { type: "advance_task"; id: string; from: "implementing" | "reviewing"; to: "reviewing" | "done" }
+  | {
+      type: "advance_task";
+      id: string;
+      from: "implementing" | "reviewing";
+      to: "reviewing" | "done";
+    }
   | { type: "abandon_task"; id: string }
   | { type: "clear_tasks" };
 
@@ -249,7 +255,13 @@ export const CUSTOM_SNAPSHOT_TYPE = "phased-tasks:snapshot";
 export const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set(["done", "abandoned"]);
 export const ACTIVE_STATUSES: ReadonlySet<TaskStatus> = new Set(["implementing", "reviewing"]);
 export const ALL_STATUSES: ReadonlySet<TaskStatus> = new Set([
-  "draft", "configured", "ready", "implementing", "reviewing", "done", "abandoned",
+  "draft",
+  "configured",
+  "ready",
+  "implementing",
+  "reviewing",
+  "done",
+  "abandoned",
 ]);
 
 // [IMPLEMENTATION DIVERGENCE] Uses emoji icons instead of plain-text characters.
@@ -328,8 +340,11 @@ export function hasDuplicateDependencies(dependencies: string[]): boolean {
 }
 
 /** Returns the set of dependency ids that don't exist in the task id set. */
-export function findMissingDependencies(dependencies: string[], existingIds: Set<string>): string[] {
-  return dependencies.filter(d => !existingIds.has(d));
+export function findMissingDependencies(
+  dependencies: string[],
+  existingIds: Set<string>,
+): string[] {
+  return dependencies.filter((d) => !existingIds.has(d));
 }
 
 // ── Cycle Detection ──
@@ -339,8 +354,10 @@ export function findMissingDependencies(dependencies: string[], existingIds: Set
  * Returns an array of task ids forming a cycle, or empty array if acyclic.
  */
 export function detectCycle(tasks: TaskRecord[]): string[] {
-  const taskMap = new Map(tasks.map(t => [t.id, t]));
-  const WHITE = 0, GRAY = 1, BLACK = 2;
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+  const WHITE = 0,
+    GRAY = 1,
+    BLACK = 2;
   const color = new Map<string, number>();
   for (const t of tasks) color.set(t.id, WHITE);
 
@@ -384,17 +401,17 @@ export function detectCycle(tasks: TaskRecord[]): string[] {
 // [IMPLEMENTATION DIVERGENCE] These are private (not exported).
 /** Returns true if any task is in implementing or reviewing. */
 function hasActiveTasks(board: TaskBoardSnapshot): boolean {
-  return board.tasks.some(t => ACTIVE_STATUSES.has(t.status));
+  return board.tasks.some((t) => ACTIVE_STATUSES.has(t.status));
 }
 
 /** Returns true if any task is in a non-terminal state. */
 function hasNonTerminalTasks(board: TaskBoardSnapshot): boolean {
-  return board.tasks.some(t => !TERMINAL_STATUSES.has(t.status));
+  return board.tasks.some((t) => !TERMINAL_STATUSES.has(t.status));
 }
 
 /** Returns true if there are tasks in ready, implementing, or reviewing. */
 export function hasActionableTasks(board: TaskBoardSnapshot): boolean {
-  return board.tasks.some(t => t.status === "ready") || hasActiveTasks(board);
+  return board.tasks.some((t) => t.status === "ready") || hasActiveTasks(board);
 }
 
 /** Returns true if there are non-terminal tasks but none are actionable (deadlock). */
@@ -409,11 +426,7 @@ export function hasBlockedNonTerminalTasks(board: TaskBoardSnapshot): boolean {
 export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
   if (typeof data !== "object" || data === null) return false;
   const obj = data as Record<string, unknown>;
-  return (
-    obj.version === 1 &&
-    Array.isArray(obj.tasks) &&
-    Array.isArray(obj.phases)
-  );
+  return obj.version === 1 && Array.isArray(obj.tasks) && Array.isArray(obj.phases);
 }
 
 // ── Status Counts ──
@@ -422,7 +435,13 @@ export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
 /** Counts tasks by status. Returns a fully-populated Record with all statuses (zero if absent). */
 export function getStatusCounts(board: TaskBoardSnapshot): Record<TaskStatus, number> {
   const counts: Record<TaskStatus, number> = {
-    draft: 0, configured: 0, ready: 0, implementing: 0, reviewing: 0, done: 0, abandoned: 0,
+    draft: 0,
+    configured: 0,
+    ready: 0,
+    implementing: 0,
+    reviewing: 0,
+    done: 0,
+    abandoned: 0,
   };
   for (const t of board.tasks) {
     counts[t.status]++;
@@ -475,10 +494,22 @@ Implement this API:
 
 ```ts
 export function createEmptyBoard(): TaskBoardSnapshot;
-export function writeTasks(board: TaskBoardSnapshot, inputTasks: Array<{ title: string; prompt: string; profile: string; phase: number }>, now: string): TaskBoardSnapshot;
-export function applyEdits(board: TaskBoardSnapshot, edits: TaskEdit[], now: string): TaskBoardSnapshot;
+export function writeTasks(
+  board: TaskBoardSnapshot,
+  inputTasks: Array<{ title: string; prompt: string; profile: string; phase: number }>,
+  now: string,
+): TaskBoardSnapshot;
+export function applyEdits(
+  board: TaskBoardSnapshot,
+  edits: TaskEdit[],
+  now: string,
+): TaskBoardSnapshot;
 export function compileBoard(board: TaskBoardSnapshot, now: string): TaskBoardSnapshot;
-export function claimReadyTasks(board: TaskBoardSnapshot, count: number, now: string): { board: TaskBoardSnapshot; claimed: TaskRecord[] };
+export function claimReadyTasks(
+  board: TaskBoardSnapshot,
+  count: number,
+  now: string,
+): { board: TaskBoardSnapshot; claimed: TaskRecord[] };
 // [IMPLEMENTATION DIVERGENCE] These are re-exported from ./validation, not defined here:
 export { hasActionableTasks, hasBlockedNonTerminalTasks, getStatusCounts } from "./validation";
 // [IMPLEMENTATION DIVERGENCE] These were never implemented:
@@ -585,20 +616,24 @@ NOTE: `recomputePhasesAndReadiness` must receive the old board to preserve `comp
 The `applyEdits` function must handle these cases precisely:
 
 **Structural edits (`data` and `blockers`)**:
+
 - After applying all structural edits in the batch, reset ALL non-terminal tasks (that are NOT implementing/reviewing) back to `draft`. This is because structural changes invalidate the compiled graph.
 - Tasks that are `implementing` or `reviewing` are never reset (they should not exist when structural edits are allowed, but guard anyway).
 
 **Advance edits**:
+
 - Only allowed transitions: `implementing → reviewing`, `reviewing → done`
 - After advancing a task to `done`, recompute phases and readiness
 - Track which tasks newly became `ready` for the return info
 
 **Abandon edits**:
+
 - Allowed from: `draft`, `configured`, `ready`, `implementing`, `reviewing`
 - Not allowed from: `done`, `abandoned`
 - After abandoning, recompute phases and readiness
 
 **Mixed batches**: A batch may contain multiple edit types. Process in this order:
+
 1. Validate all edits
 2. Apply all `data` and `blockers` edits first, then reset non-active non-terminal tasks to `draft`
 3. Apply all `advance` and `abandon` edits, recomputing after each one
@@ -657,8 +692,14 @@ Copy the pi-tui mock pattern from `pi-til-done`:
 import { vi } from "vitest";
 
 class MockText {
-  constructor(private _text: string, _x: number, _y: number) {}
-  toString(): string { return this._text; }
+  constructor(
+    private _text: string,
+    _x: number,
+    _y: number,
+  ) {}
+  toString(): string {
+    return this._text;
+  }
   render(_width: number): string[] {
     if (this._text === "") return [];
     return this._text.split("\n");
@@ -818,15 +859,31 @@ Use a helper function in `src/__tests__/helpers/engine-helpers.ts` to create a c
 
 ```ts
 // [IMPLEMENTATION DIVERGENCE] IDs are `t-{phase}.{n}`, not `task-{i+1}`
-function makeCompiledBoard(tasks: Array<{ title: string; prompt: string; profile: string; phase: number; dependencies?: string[] }>): TaskBoardSnapshot {
+function makeCompiledBoard(
+  tasks: Array<{
+    title: string;
+    prompt: string;
+    profile: string;
+    phase: number;
+    dependencies?: string[];
+  }>,
+): TaskBoardSnapshot {
   let board = createEmptyBoard();
   const now = "2025-01-01T00:00:00.000Z";
-  board = writeTasks(board, tasks.map(({ title, prompt, profile, phase }) => ({ title, prompt, profile, phase })), now);
+  board = writeTasks(
+    board,
+    tasks.map(({ title, prompt, profile, phase }) => ({ title, prompt, profile, phase })),
+    now,
+  );
   // Add dependencies via blockers edits if provided
   const edits: TaskEdit[] = [];
   tasks.forEach((t, i) => {
     if (t.dependencies && t.dependencies.length > 0) {
-      edits.push({ id: board.tasks[i].id, type: "blockers", data: { dependencies: t.dependencies } });
+      edits.push({
+        id: board.tasks[i].id,
+        type: "blockers",
+        data: { dependencies: t.dependencies },
+      });
     }
   });
   if (edits.length > 0) {
@@ -888,7 +945,10 @@ export async function loadConfig(): Promise<PhasedTasksConfig> {
 }
 
 /** Resolve the phase completion prompt template for a given phase number. Returns undefined if no template configured. */
-export function resolvePhasePrompt(template: string | undefined, phase: number): string | undefined {
+export function resolvePhasePrompt(
+  template: string | undefined,
+  phase: number,
+): string | undefined {
   if (!template) return undefined;
   return template.replace(/\{phase\}/g, String(phase));
 }
@@ -998,7 +1058,11 @@ export function reconstructState(ctx: ExtensionContext): TaskBoardSnapshot {
 // ── Persistence Helpers ──
 
 /** Append both an event and a snapshot entry. */
-export function persistEntries(pi: ExtensionAPI, event: unknown, snapshot: TaskBoardSnapshot): void {
+export function persistEntries(
+  pi: ExtensionAPI,
+  event: unknown,
+  snapshot: TaskBoardSnapshot,
+): void {
   pi.appendEntry(CUSTOM_EVENT_TYPE, event);
   pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, JSON.parse(JSON.stringify(snapshot)));
 }
@@ -1021,7 +1085,7 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   const done = counts.done + counts.abandoned;
   const total = snapshot.tasks.length;
 
-  const activePhase = snapshot.phases.find(p => p.status === "active");
+  const activePhase = snapshot.phases.find((p) => p.status === "active");
   const phaseLabel = activePhase ? `Phase ${activePhase.phase}` : "No active phase";
 
   if (done === total) {
@@ -1038,7 +1102,10 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
       activeLines.push(`[${t.id}] ${t.title}`);
     }
   }
-  ctx.ui.setStatus("phased-tasks-active", activeLines.length > 0 ? activeLines.join("\n") : undefined);
+  ctx.ui.setStatus(
+    "phased-tasks-active",
+    activeLines.length > 0 ? activeLines.join("\n") : undefined,
+  );
 }
 ```
 
@@ -1144,12 +1211,12 @@ export function formatBoardText(board: TaskBoardSnapshot): string {
   const lines: string[] = ["Task Board:", ""];
 
   // Group by phase
-  const phases = [...new Set(board.tasks.map(t => t.phase))].sort((a, b) => a - b);
+  const phases = [...new Set(board.tasks.map((t) => t.phase))].sort((a, b) => a - b);
   for (const phase of phases) {
-    const phaseRecord = board.phases.find(p => p.phase === phase);
+    const phaseRecord = board.phases.find((p) => p.phase === phase);
     const phaseStatus = phaseRecord ? ` (${phaseRecord.status})` : "";
     lines.push(`── Phase ${phase}${phaseStatus} ──`);
-    const phaseTasks = board.tasks.filter(t => t.phase === phase);
+    const phaseTasks = board.tasks.filter((t) => t.phase === phase);
     for (const task of phaseTasks) {
       let line = formatTaskLine(task);
       if (task.dependencies.length > 0) {
@@ -1177,8 +1244,8 @@ export function formatBoardText(board: TaskBoardSnapshot): string {
 /** Format a short summary for tool output headers. */
 export function formatSummaryLine(board: TaskBoardSnapshot): string {
   const total = board.tasks.length;
-  const done = board.tasks.filter(t => t.status === "done" || t.status === "abandoned").length;
-  const activePhase = board.phases.find(p => p.status === "active");
+  const done = board.tasks.filter((t) => t.status === "done" || t.status === "abandoned").length;
+  const activePhase = board.phases.find((p) => p.status === "active");
   return activePhase
     ? `Phase ${activePhase.phase} · ${done}/${total} done`
     : `${done}/${total} done`;
@@ -1188,7 +1255,7 @@ export function formatSummaryLine(board: TaskBoardSnapshot): string {
 export function formatHiddenContext(board: TaskBoardSnapshot): string {
   const lines: string[] = ["[PHASED TASKS ACTIVE]", ""];
 
-  const activePhase = board.phases.find(p => p.status === "active");
+  const activePhase = board.phases.find((p) => p.status === "active");
   lines.push(`Active Phase: ${activePhase ? activePhase.phase : "none"}`);
 
   // Counts by status
@@ -1196,10 +1263,16 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   for (const t of board.tasks) {
     counts[t.status] = (counts[t.status] || 0) + 1;
   }
-  lines.push(`Status: ${Object.entries(counts).map(([s, c]) => `${c} ${s}`).join(", ")}`);
+  lines.push(
+    `Status: ${Object.entries(counts)
+      .map(([s, c]) => `${c} ${s}`)
+      .join(", ")}`,
+  );
 
   // Currently claimed tasks
-  const claimed = board.tasks.filter(t => t.status === "implementing" || t.status === "reviewing");
+  const claimed = board.tasks.filter(
+    (t) => t.status === "implementing" || t.status === "reviewing",
+  );
   if (claimed.length > 0) {
     lines.push("");
     lines.push("Currently claimed:");
@@ -1211,13 +1284,13 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   // Non-terminal tasks (cap at reasonable size)
   lines.push("");
   lines.push("Remaining tasks:");
-  const nonTerminal = board.tasks.filter(t => t.status !== "done" && t.status !== "abandoned");
+  const nonTerminal = board.tasks.filter((t) => t.status !== "done" && t.status !== "abandoned");
   for (const t of nonTerminal) {
     lines.push(`  ${formatTaskLine(t)}`);
   }
 
   // Recently completed (up to 10)
-  const terminal = board.tasks.filter(t => t.status === "done" || t.status === "abandoned");
+  const terminal = board.tasks.filter((t) => t.status === "done" || t.status === "abandoned");
   if (terminal.length > 0) {
     const recent = terminal.slice(-10);
     if (terminal.length > 10) {
@@ -1229,15 +1302,17 @@ export function formatHiddenContext(board: TaskBoardSnapshot): string {
   }
 
   lines.push("");
-  lines.push("Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → advance_tasks → done");
+  lines.push(
+    "Workflow: write_tasks → edit_tasks (blockers/data) → compile_tasks → get_ready_tasks → advance_tasks → done",
+  );
 
   return lines.join("\n");
 }
 
 /** Format the auto-continue prompt. */
 export function formatContinuePrompt(board: TaskBoardSnapshot): string {
-  const ready = board.tasks.filter(t => t.status === "ready");
-  const active = board.tasks.filter(t => t.status === "implementing" || t.status === "reviewing");
+  const ready = board.tasks.filter((t) => t.status === "ready");
+  const active = board.tasks.filter((t) => t.status === "implementing" || t.status === "reviewing");
 
   if (ready.length > 0 || active.length > 0) {
     const lines: string[] = ["Tasks remain. Continue working on the phased task board."];
@@ -1256,14 +1331,14 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
   }
 
   // Deadlock
-  const nonTerminal = board.tasks.filter(t => t.status !== "done" && t.status !== "abandoned");
+  const nonTerminal = board.tasks.filter((t) => t.status !== "done" && t.status !== "abandoned");
   if (nonTerminal.length > 0) {
     return [
       "The task board is blocked — no tasks are ready, implementing, or reviewing, but tasks remain.",
       "Inspect dependencies and phase gating. Use edit_tasks to resolve blockers, then compile_tasks.",
       "",
       "Blocked tasks:",
-      ...nonTerminal.map(t => `  [${t.id}] ${t.title} (${t.status}, Phase ${t.phase})`),
+      ...nonTerminal.map((t) => `  [${t.id}] ${t.title} (${t.status}, Phase ${t.phase})`),
     ].join("\n");
   }
 
@@ -1305,16 +1380,23 @@ Step 2
 Register six tools using the pi tool registration pattern. Each tool is a factory function that accepts `pi: ExtensionAPI` and returns a `ToolDefinition`.
 
 Key imports:
+
 ```ts
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
-import type { ExtensionAPI, ToolDefinition, ExtensionContext, AgentToolResult } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ToolDefinition,
+  ExtensionContext,
+  AgentToolResult,
+} from "@earendil-works/pi-coding-agent";
 ```
 
 #### Tool 1: `write_tasks`
 
 Parameters schema:
+
 ```ts
 Type.Object({
   tasks: Type.Array(
@@ -1326,10 +1408,11 @@ Type.Object({
     }),
     { description: "Tasks to add to the board" },
   ),
-})
+});
 ```
 
 Behavior (5-step pattern):
+
 1. Get current board: `getBoard()`
 2. Call engine: `writeTasks(board, inputTasks, now)`
 3. Set new board: `setBoard(newBoard)`
@@ -1343,6 +1426,7 @@ On error (thrown by engine), return error content. On success, return `formatBoa
 > **[IMPLEMENTATION DIVERGENCE]** `edit_tasks` has 3 types: `data`, `blockers`, `abandon`. The `advance` type was moved to a separate `advance_tasks` tool.
 
 Parameters schema using a union type:
+
 ```ts
 Type.Object({
   tasks: Type.Array(
@@ -1370,10 +1454,11 @@ Type.Object({
       }),
     ]),
   ),
-})
+});
 ```
 
 Behavior (5-step pattern + phase detection):
+
 1. Get current board: `getBoard()`
 2. Snapshot before-phases for comparison
 3. Call engine: `applyEdits(board, edits, now)`
@@ -1390,6 +1475,7 @@ On error, return error content. On success, return summary of edits applied plus
 Parameters: `Type.Object({})` (no parameters)
 
 Behavior (5-step pattern + phase detection):
+
 1. Get current board: `getBoard()`
 2. Snapshot before-phases for comparison
 3. Call engine: `compileBoard(board, now)`
@@ -1405,6 +1491,7 @@ On error, return error content. On success, return the compiled board summary.
 Parameters: `Type.Object({})` (no parameters)
 
 Behavior:
+
 1. Create empty board via `createEmptyBoard()`
 2. Set new board: `setBoard(emptyBoard)`
 3. Persist: `persistEntries(pi, { type: "clear_tasks" }, emptyBoard)`
@@ -1414,13 +1501,15 @@ Behavior:
 #### Tool 5: `get_ready_tasks`
 
 Parameters:
+
 ```ts
 Type.Object({
   count: Type.Integer({ description: "Number of tasks to claim (>= 1)", minimum: 1 }),
-})
+});
 ```
 
 Behavior (5-step pattern):
+
 1. Get current board: `getBoard()`
 2. Call engine: `claimReadyTasks(board, count, now)`
 3. If `claimed.length === 0`, return appropriate error message:
@@ -1440,13 +1529,15 @@ Note: `claimReadyTasks` returns `{ board, claimed: [] }` when no ready tasks exi
 > **[IMPLEMENTATION DIVERGENCE]** This is a new tool not in the original plan. `advance` was originally an `edit_tasks` type.
 
 Parameters schema:
+
 ```ts
 Type.Object({
   ids: Type.Array(Type.String(), { description: "Task IDs to advance" }),
-})
+});
 ```
 
 Behavior:
+
 1. Get current board: `getBoard()`
 2. Map ids to `TaskEdit[]` with `type: "advance"`
 3. Call engine: `applyEdits(board, edits, now)`
@@ -1460,6 +1551,7 @@ Behavior:
 Each tool must implement `renderCall` and `renderResult` following the `pi-til-done` pattern.
 
 `renderCall` examples:
+
 - `write_tasks`: `theme.fg("toolTitle", theme.bold("write_tasks ")) + theme.fg("muted", "(N items)")`
 - `edit_tasks`: `theme.fg("toolTitle", theme.bold("edit_tasks ")) + theme.fg("warning", "(N edits)")`
 - `compile_tasks`: `theme.fg("toolTitle", theme.bold("compile_tasks"))`
@@ -1504,8 +1596,13 @@ import type { TaskBoardSnapshot } from "./types";
 import { MAX_AUTO_CONTINUE } from "./types";
 import { hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
 import {
-  getBoardRef, setBoard, reconstructState, updateUI,
-  incrementAutoContinue, resetAutoContinue, persistEntries,
+  getBoardRef,
+  setBoard,
+  reconstructState,
+  updateUI,
+  incrementAutoContinue,
+  resetAutoContinue,
+  persistEntries,
 } from "./state";
 import { resetConfig } from "./config";
 import { formatHiddenContext, formatContinuePrompt } from "./formatting";
@@ -1515,9 +1612,17 @@ let activeCountdown: ReturnType<typeof setInterval> | null = null;
 let activeTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function clearCountdown(ctx: ExtensionContext): void {
-  if (activeCountdown !== null) { clearInterval(activeCountdown); activeCountdown = null; }
-  if (activeTimeout !== null) { clearTimeout(activeTimeout); activeTimeout = null; }
-  if (ctx.hasUI) { ctx.ui.setWidget("phased-tasks-countdown", undefined); }
+  if (activeCountdown !== null) {
+    clearInterval(activeCountdown);
+    activeCountdown = null;
+  }
+  if (activeTimeout !== null) {
+    clearTimeout(activeTimeout);
+    activeTimeout = null;
+  }
+  if (ctx.hasUI) {
+    ctx.ui.setWidget("phased-tasks-countdown", undefined);
+  }
 }
 
 // ── Abort Detection ──
@@ -1530,10 +1635,14 @@ function wasAborted(messages: { role: string; stopReason?: string }[]): boolean 
 
 // ── Auto-Continue Delivery ──
 function trySendAutoContinue(pi: ExtensionAPI, prompt: string): void {
-  try { pi.sendUserMessage(prompt); }
-  catch {
-    try { pi.sendUserMessage(prompt, { deliverAs: "followUp" }); }
-    catch { /* skip */ }
+  try {
+    pi.sendUserMessage(prompt);
+  } catch {
+    try {
+      pi.sendUserMessage(prompt, { deliverAs: "followUp" });
+    } catch {
+      /* skip */
+    }
   }
 }
 
@@ -1546,19 +1655,25 @@ function scheduleAutoContinue(pi: ExtensionAPI, ctx: ExtensionContext, prompt: s
       try {
         remaining--;
         if (remaining > 0) {
-          ctx.ui.setWidget("phased-tasks-countdown",
+          ctx.ui.setWidget(
+            "phased-tasks-countdown",
             [`⏳ Auto-continuing in ${remaining}s... (type anything to interrupt)`],
-            { placement: "aboveEditor" });
+            { placement: "aboveEditor" },
+          );
         } else {
           clearCountdown(ctx);
           trySendAutoContinue(pi, prompt);
         }
-      } catch { clearCountdown(ctx); }
+      } catch {
+        clearCountdown(ctx);
+      }
     }, 1000);
     activeCountdown = interval;
-    ctx.ui.setWidget("phased-tasks-countdown",
+    ctx.ui.setWidget(
+      "phased-tasks-countdown",
       ["⏳ Auto-continuing in 3s... (type anything to interrupt)"],
-      { placement: "aboveEditor" });
+      { placement: "aboveEditor" },
+    );
   } else {
     activeTimeout = setTimeout(() => {
       activeTimeout = null;
@@ -1616,11 +1731,14 @@ export function registerEventHandlers(pi: ExtensionAPI): void {
 
     const count = incrementAutoContinue();
     if (count > MAX_AUTO_CONTINUE) {
-      pi.sendMessage({
-        customType: "phased-tasks-notice",
-        content: `Auto-continue limit reached (${MAX_AUTO_CONTINUE} iterations). Remaining tasks were not resolved. Take over manually.`,
-        display: true,
-      }, { triggerTurn: false });
+      pi.sendMessage(
+        {
+          customType: "phased-tasks-notice",
+          content: `Auto-continue limit reached (${MAX_AUTO_CONTINUE} iterations). Remaining tasks were not resolved. Take over manually.`,
+          display: true,
+        },
+        { triggerTurn: false },
+      );
       return;
     }
 
@@ -2029,22 +2147,22 @@ package.json, tsconfig.json, vitest.config.ts, eslint.config.js
 
 ## Summary Table
 
-| Step | Title | Files Created/Modified | Depends On |
-|------|-------|----------------------|------------|
-| 1 | Package Scaffold | package.json, tsconfig.json, vitest.config.ts, eslint.config.js | — |
-| 2 | Types and Constants | src/types.ts | 1 |
-| 3 | Validation Helpers | src/validation.ts | 2 |
-| 4 | Pure Workflow Engine | src/engine.ts | 2, 3 |
-| 5 | Engine Tests | src/__tests__/setup.ts, helpers/mocks.ts, engine.test.ts | 2, 3, 4 |
-| 6 | Config Module | src/config.ts | 2 |
-| 7 | State Management | src/state.ts | 2, 3, 4, 6 |
-| 8 | State Tests | src/__tests__/state.test.ts | 5, 7 |
-| 9 | Formatting Module | src/formatting.ts | 2 |
-| 10 | Tool Definitions | src/tools.ts | 4, 6, 7, 9 |
-| 11 | Event Handlers | src/events.ts | 7, 9 |
-| 12 | Message Renderers | src/renderers.ts | 5 |
-| 13 | Entry Point | src/index.ts | 10, 11, 12 |
-| 14 | Tool Tests | src/__tests__/tools.test.ts | 10, 13 |
-| 15 | Event Tests | src/__tests__/events.test.ts | 11, 13 |
-| 16 | Validation Tests | src/__tests__/validation.test.ts | 3, 5 |
-| 17 | Integration Verification | All files (review) | All |
+| Step | Title                    | Files Created/Modified                                          | Depends On |
+| ---- | ------------------------ | --------------------------------------------------------------- | ---------- |
+| 1    | Package Scaffold         | package.json, tsconfig.json, vitest.config.ts, eslint.config.js | —          |
+| 2    | Types and Constants      | src/types.ts                                                    | 1          |
+| 3    | Validation Helpers       | src/validation.ts                                               | 2          |
+| 4    | Pure Workflow Engine     | src/engine.ts                                                   | 2, 3       |
+| 5    | Engine Tests             | src/**tests**/setup.ts, helpers/mocks.ts, engine.test.ts        | 2, 3, 4    |
+| 6    | Config Module            | src/config.ts                                                   | 2          |
+| 7    | State Management         | src/state.ts                                                    | 2, 3, 4, 6 |
+| 8    | State Tests              | src/**tests**/state.test.ts                                     | 5, 7       |
+| 9    | Formatting Module        | src/formatting.ts                                               | 2          |
+| 10   | Tool Definitions         | src/tools.ts                                                    | 4, 6, 7, 9 |
+| 11   | Event Handlers           | src/events.ts                                                   | 7, 9       |
+| 12   | Message Renderers        | src/renderers.ts                                                | 5          |
+| 13   | Entry Point              | src/index.ts                                                    | 10, 11, 12 |
+| 14   | Tool Tests               | src/**tests**/tools.test.ts                                     | 10, 13     |
+| 15   | Event Tests              | src/**tests**/events.test.ts                                    | 11, 13     |
+| 16   | Validation Tests         | src/**tests**/validation.test.ts                                | 3, 5       |
+| 17   | Integration Verification | All files (review)                                              | All        |

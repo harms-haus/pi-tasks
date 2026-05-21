@@ -57,7 +57,7 @@ export function writeTasks(
     validateTaskInput(inputTasks[i], i);
 
     const input = inputTasks[i];
-    const phaseCount = result.tasks.filter(t => t.phase === input.phase).length;
+    const phaseCount = result.tasks.filter((t) => t.phase === input.phase).length;
     const id = `t-${input.phase}.${phaseCount + 1}`;
     result.tasks.push({
       id,

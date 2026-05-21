@@ -584,11 +584,7 @@ describe("advance_tasks tool", () => {
     await callExecute(getReadyTool, { count: 1 }, ctx);
     // t-1.1 is implementing
 
-    const result = await callExecute(
-      advanceTool,
-      { ids: ["t-1.1"] },
-      ctx,
-    );
+    const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
@@ -658,11 +654,7 @@ describe("advance_tasks tool", () => {
     await callExecute(getReadyTool, { count: 2 }, ctx);
     // Both implementing
 
-    const result = await callExecute(
-      advanceTool,
-      { ids: ["t-1.1", "t-1.2"] },
-      ctx,
-    );
+    const result = await callExecute(advanceTool, { ids: ["t-1.1", "t-1.2"] }, ctx);
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
@@ -762,10 +754,7 @@ describe("advance_tasks tool", () => {
   it("renderCall shows task count", () => {
     const advanceTool = createAdvanceTasksTool(api);
     const theme = createMockTheme();
-    const rendered = (advanceTool as any).renderCall(
-      { ids: ["t-1.1", "t-1.2"] },
-      theme,
-    );
+    const rendered = (advanceTool as any).renderCall({ ids: ["t-1.1", "t-1.2"] }, theme);
     const text = rendered.toString();
     expect(text).toContain("advance_tasks");
     expect(text).toContain("2 tasks");

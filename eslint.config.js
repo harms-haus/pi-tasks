@@ -65,7 +65,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-condition": "warn",
       "@typescript-eslint/no-base-to-string": "warn",
       "max-lines-per-function": "off",
-      "complexity": "off",
+      complexity: "off",
       "max-depth": "off",
     },
   },

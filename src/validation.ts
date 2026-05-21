@@ -131,11 +131,7 @@ export function hasBlockedNonTerminalTasks(board: TaskBoardSnapshot): boolean {
 export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
   if (typeof data !== "object" || data === null) return false;
   const obj = data as Record<string, unknown>;
-  return (
-    obj.version === 1 &&
-    Array.isArray(obj.tasks) &&
-    Array.isArray(obj.phases)
-  );
+  return obj.version === 1 && Array.isArray(obj.tasks) && Array.isArray(obj.phases);
 }
 
 // ── Deep Clone ──

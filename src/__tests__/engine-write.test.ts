@@ -105,11 +105,7 @@ describe("writeTasks", () => {
       ],
       NOW,
     );
-    const result = writeTasks(
-      board,
-      [{ title: "C", prompt: "P", profile: "c", phase: 1 }],
-      NOW,
-    );
+    const result = writeTasks(board, [{ title: "C", prompt: "P", profile: "c", phase: 1 }], NOW);
     expect(result.tasks[2].id).toBe("t-1.3");
   });
 

@@ -83,7 +83,22 @@ describe("state", () => {
     });
 
     it("finds the latest snapshot in reverse scan", () => {
-      const firstSnapshot = makeSampleBoard({ tasks: [...makeSampleBoard().tasks, { id: "extra", title: "Extra", prompt: "P", profile: "c", phase: 1, dependencies: [], status: "draft", createdAt: "", updatedAt: "" }] });
+      const firstSnapshot = makeSampleBoard({
+        tasks: [
+          ...makeSampleBoard().tasks,
+          {
+            id: "extra",
+            title: "Extra",
+            prompt: "P",
+            profile: "c",
+            phase: 1,
+            dependencies: [],
+            status: "draft",
+            createdAt: "",
+            updatedAt: "",
+          },
+        ],
+      });
       const secondSnapshot = makeSampleBoard();
 
       const branch = [

@@ -1,7 +1,16 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { CUSTOM_SNAPSHOT_TYPE, MAX_AUTO_CONTINUE } from "./types";
 import { cloneBoard, hasActionableTasks, hasBlockedNonTerminalTasks } from "./validation";
-import { getBoardRef, setBoard, reconstructState, updateUI, incrementAutoContinue, getLastToolWasAdvance, setLastToolWasAdvance, setAdvanceWarningPending } from "./state";
+import {
+  getBoardRef,
+  setBoard,
+  reconstructState,
+  updateUI,
+  incrementAutoContinue,
+  getLastToolWasAdvance,
+  setLastToolWasAdvance,
+  setAdvanceWarningPending,
+} from "./state";
 import { resetConfig } from "./config";
 import { formatHiddenContext, formatContinuePrompt } from "./formatting";
 

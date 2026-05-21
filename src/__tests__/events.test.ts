@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { TaskBoardSnapshot } from "../types";
 import { MAX_AUTO_CONTINUE } from "../types";
-import { setBoard, resetState, getBoard, getLastToolWasAdvance, consumeAdvanceWarning, setAdvanceWarningPending } from "../state";
+import {
+  setBoard,
+  resetState,
+  getBoard,
+  getLastToolWasAdvance,
+  consumeAdvanceWarning,
+  setAdvanceWarningPending,
+} from "../state";
 import { createEmptyBoard, writeTasks, compileBoard, applyEdits, claimReadyTasks } from "../engine";
 import { registerEventHandlers } from "../events";
 import { createMockAPI, createMockContext } from "./helpers/mocks";

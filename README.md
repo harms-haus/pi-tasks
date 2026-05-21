@@ -119,20 +119,21 @@ implementing → reviewing → done using advance_tasks.
 
 Add tasks to the board. Each task is created in `draft` status.
 
-| Parameter  | Type     | Required | Description                                       |
-|------------|----------|----------|---------------------------------------------------|
-| `tasks`    | `array`  | Yes      | Array of task objects to add                      |
+| Parameter | Type    | Required | Description                  |
+| --------- | ------- | -------- | ---------------------------- |
+| `tasks`   | `array` | Yes      | Array of task objects to add |
 
 Each task object:
 
-| Field     | Type     | Required | Description                          |
-|-----------|----------|----------|--------------------------------------|
-| `title`   | `string` | Yes      | Short task title                     |
-| `prompt`  | `string` | Yes      | Detailed implementation instructions |
-| `profile` | `string` | Yes      | Agent profile name for delegation    |
-| `phase`   | `integer`| Yes      | Phase number (≥ 1)                  |
+| Field     | Type      | Required | Description                          |
+| --------- | --------- | -------- | ------------------------------------ |
+| `title`   | `string`  | Yes      | Short task title                     |
+| `prompt`  | `string`  | Yes      | Detailed implementation instructions |
+| `profile` | `string`  | Yes      | Agent profile name for delegation    |
+| `phase`   | `integer` | Yes      | Phase number (≥ 1)                   |
 
 **Constraints:**
+
 - Maximum 100 tasks per board (`MAX_TASKS`)
 - Title, prompt, and profile must be non-empty strings
 - Phase must be an integer ≥ 1
@@ -141,39 +142,39 @@ Each task object:
 
 Batch-edit tasks on the board. Supports three edit types. Edits are atomic — if any validation fails, none are applied.
 
-| Parameter | Type    | Required | Description                          |
-|-----------|---------|----------|--------------------------------------|
-| `tasks`   | `array` | Yes      | Array of edit objects (mixed types)  |
+| Parameter | Type    | Required | Description                         |
+| --------- | ------- | -------- | ----------------------------------- |
+| `tasks`   | `array` | Yes      | Array of edit objects (mixed types) |
 
 **Type: `data`** — modify task fields
 
-| Field             | Type     | Description                        |
-|-------------------|----------|------------------------------------|
-| `id`              | `string` | Task ID                            |
-| `type`            | `"data"` | Edit type                          |
-| `data.title`      | `string` | Optional. New title                |
-| `data.prompt`     | `string` | Optional. New prompt               |
-| `data.profile`    | `string` | Optional. New profile              |
-| `data.phase`      | `integer`| Optional. New phase number (≥ 1)   |
+| Field          | Type      | Description                      |
+| -------------- | --------- | -------------------------------- |
+| `id`           | `string`  | Task ID                          |
+| `type`         | `"data"`  | Edit type                        |
+| `data.title`   | `string`  | Optional. New title              |
+| `data.prompt`  | `string`  | Optional. New prompt             |
+| `data.profile` | `string`  | Optional. New profile            |
+| `data.phase`   | `integer` | Optional. New phase number (≥ 1) |
 
 Structural edits (data/blockers) cannot be applied while any task is `implementing` or `reviewing`. Applying a structural edit resets all non-terminal, non-active tasks back to `draft`, requiring a recompile.
 
 **Type: `blockers`** — set task dependencies
 
-| Field                | Type       | Description                     |
-|----------------------|------------|---------------------------------|
-| `id`                 | `string`   | Task ID                         |
-| `type`               | `"blockers"`| Edit type                      |
-| `data.dependencies`  | `string[]` | Array of task IDs this task depends on |
+| Field               | Type         | Description                            |
+| ------------------- | ------------ | -------------------------------------- |
+| `id`                | `string`     | Task ID                                |
+| `type`              | `"blockers"` | Edit type                              |
+| `data.dependencies` | `string[]`   | Array of task IDs this task depends on |
 
 Validates against self-dependencies, duplicate entries, and references to non-existent tasks.
 
 **Type: `abandon`** — mark task as abandoned
 
-| Field  | Type        | Description                          |
-|--------|-------------|--------------------------------------|
-| `id`   | `string`    | Task ID                              |
-| `type` | `"abandon"` | Edit type                            |
+| Field  | Type        | Description |
+| ------ | ----------- | ----------- |
+| `id`   | `string`    | Task ID     |
+| `type` | `"abandon"` | Edit type   |
 
 Cannot abandon tasks already in `done` or `abandoned` status.
 
@@ -193,15 +194,16 @@ Cannot compile while any task is `implementing` or `reviewing`.
 
 Claim ready tasks for implementation. Moves claimed tasks to `implementing` status.
 
-| Parameter | Type      | Required | Description                        |
-|-----------|-----------|----------|------------------------------------|
-| `count`   | `integer` | Yes      | Number of tasks to claim (≥ 1)    |
+| Parameter | Type      | Required | Description                    |
+| --------- | --------- | -------- | ------------------------------ |
+| `count`   | `integer` | Yes      | Number of tasks to claim (≥ 1) |
 
 Tasks are ordered by phase ascending, then by creation order. Cannot claim while any task is `implementing` or `reviewing`.
 
 Claimed task output shows the first 3 lines of each task's prompt, followed by `... (ctrl-o to expand)` if the prompt is longer. The board display after claiming shows only the active phase.
 
 Error messages distinguish between:
+
 - **All tasks resolved** — board is complete
 - **Active tasks exist** — advance or complete them first
 - **Deadlock** — tasks remain but none are actionable; suggests resolving blockers
@@ -210,9 +212,9 @@ Error messages distinguish between:
 
 Advance tasks through their lifecycle: `implementing` → `reviewing` → `done`. Each call advances each task by one step.
 
-| Parameter | Type       | Required | Description                          |
-|-----------|------------|----------|--------------------------------------|
-| `ids`     | `string[]` | Yes      | Array of task IDs to advance        |
+| Parameter | Type       | Required | Description                  |
+| --------- | ---------- | -------- | ---------------------------- |
+| `ids`     | `string[]` | Yes      | Array of task IDs to advance |
 
 Tasks must be in `implementing` or `reviewing` status. Duplicate IDs in the array are deduplicated.
 
@@ -234,15 +236,15 @@ draft ──→ configured ──→ ready ──→ implementing ──→ revi
                               └─── (any non-terminal) ──→ abandoned
 ```
 
-| Status         | Icon  | Description                                                          |
-|----------------|-------|----------------------------------------------------------------------|
-| `draft`        | `⚪`  | Initial state after `write_tasks`                                    |
-| `configured`   | `🔵`  | Validated by `compile_tasks`; awaiting readiness                     |
-| `ready`        | `🟢`  | Phase is active and all dependencies are done; available to claim   |
-| `implementing` | `▶️`  | Claimed via `get_ready_tasks`; actively being worked on             |
-| `reviewing`    | `🔍`  | Advanced from `implementing`; awaiting final review                 |
-| `done`         | `✅`  | Advanced from `reviewing`; terminal state                           |
-| `abandoned`    | `❌`  | Explicitly skipped via `edit_tasks` (type: abandon); terminal state |
+| Status         | Icon | Description                                                         |
+| -------------- | ---- | ------------------------------------------------------------------- |
+| `draft`        | `⚪` | Initial state after `write_tasks`                                   |
+| `configured`   | `🔵` | Validated by `compile_tasks`; awaiting readiness                    |
+| `ready`        | `🟢` | Phase is active and all dependencies are done; available to claim   |
+| `implementing` | `▶️` | Claimed via `get_ready_tasks`; actively being worked on             |
+| `reviewing`    | `🔍` | Advanced from `implementing`; awaiting final review                 |
+| `done`         | `✅` | Advanced from `reviewing`; terminal state                           |
+| `abandoned`    | `❌` | Explicitly skipped via `edit_tasks` (type: abandon); terminal state |
 
 Terminal statuses (`done`, `abandoned`) are permanent — tasks in these states cannot be edited or advanced.
 
@@ -257,11 +259,11 @@ Tasks are grouped into numbered phases (≥ 1). Phases execute sequentially:
 
 Phase status tracking:
 
-| Phase Status | Meaning                                         |
-|--------------|-------------------------------------------------|
-| `pending`    | Not yet reached; tasks are locked               |
-| `active`     | Current phase; tasks can become ready            |
-| `completed`  | All tasks are terminal (`done` or `abandoned`)  |
+| Phase Status | Meaning                                        |
+| ------------ | ---------------------------------------------- |
+| `pending`    | Not yet reached; tasks are locked              |
+| `active`     | Current phase; tasks can become ready          |
+| `completed`  | All tasks are terminal (`done` or `abandoned`) |
 
 Phase completion triggers an optional [prompt template](#configuration) and can trigger auto-continue.
 
@@ -275,6 +277,7 @@ Each task can declare dependencies on other tasks. Dependencies are validated du
 - **No cycles** — the dependency graph must be a DAG (validated via DFS cycle detection)
 
 A task becomes `ready` only when:
+
 1. Its phase is active
 2. All of its dependencies have status `done`
 
@@ -290,9 +293,9 @@ Create `.pi/phased-tasks.json` in your project root:
 }
 ```
 
-| Field                              | Type     | Description                                                        |
-|------------------------------------|----------|--------------------------------------------------------------------|
-| `phaseCompletionPromptTemplate`    | `string` | Optional. Template for the prompt injected when a phase completes. Use `{phase}` as a placeholder for the phase number. |
+| Field                           | Type     | Description                                                                                                             |
+| ------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `phaseCompletionPromptTemplate` | `string` | Optional. Template for the prompt injected when a phase completes. Use `{phase}` as a placeholder for the phase number. |
 
 The template is resolved by replacing `{phase}` with the completed phase number. If no template is configured, phase completion is detected but no additional prompt is injected.
 
@@ -326,10 +329,10 @@ Before each agent turn (`before_agent_start`), the extension injects a hidden co
 
 The extension persists two types of custom entries to the session tree:
 
-| Custom Type                  | Purpose                                              |
-|------------------------------|------------------------------------------------------|
-| `phased-tasks:event`         | Individual workflow events (write, edit, compile, claim, clear) |
-| `phased-tasks:snapshot`      | Full board snapshot after each mutation              |
+| Custom Type             | Purpose                                                         |
+| ----------------------- | --------------------------------------------------------------- |
+| `phased-tasks:event`    | Individual workflow events (write, edit, compile, claim, clear) |
+| `phased-tasks:snapshot` | Full board snapshot after each mutation                         |
 
 On `session_start` and `session_tree` events, the board is reconstructed by scanning the session branch in reverse for the latest valid snapshot.
 

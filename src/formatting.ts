@@ -68,18 +68,18 @@ export function formatSummaryLine(board: TaskBoardSnapshot): string {
 
 /** Format claimed task details with prompt preview. */
 export function formatClaimedTaskDetails(tasks: TaskRecord[]): string {
-  return tasks.map(t => {
-    const lines = [
-      `${getStatusIcon(t.status)} ${t.id}: ${t.title}  (${t.profile})`,
-    ];
-    const promptLines = t.prompt.split('\n');
-    const shown = promptLines.slice(0, 3);
-    lines.push(...shown);
-    if (promptLines.length > 3) {
-      lines.push('  ... (ctrl-o to expand)');
-    }
-    return lines.join('\n');
-  }).join('\n\n');
+  return tasks
+    .map((t) => {
+      const lines = [`${getStatusIcon(t.status)} ${t.id}: ${t.title}  (${t.profile})`];
+      const promptLines = t.prompt.split("\n");
+      const shown = promptLines.slice(0, 3);
+      lines.push(...shown);
+      if (promptLines.length > 3) {
+        lines.push("  ... (ctrl-o to expand)");
+      }
+      return lines.join("\n");
+    })
+    .join("\n\n");
 }
 
 /** Format the hidden context message for before_agent_start injection. */

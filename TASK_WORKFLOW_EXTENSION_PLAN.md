@@ -158,12 +158,24 @@ Define event union types:
 
 ```ts
 type TaskWorkflowEvent =
-  | { type: "write_tasks"; tasks: Array<{ id: string; title: string; prompt: string; profile: string; phase: number }> }
-  | { type: "edit_task_data"; id: string; data: Partial<Pick<TaskRecord, "title" | "prompt" | "profile" | "phase">> }
+  | {
+      type: "write_tasks";
+      tasks: Array<{ id: string; title: string; prompt: string; profile: string; phase: number }>;
+    }
+  | {
+      type: "edit_task_data";
+      id: string;
+      data: Partial<Pick<TaskRecord, "title" | "prompt" | "profile" | "phase">>;
+    }
   | { type: "edit_task_blockers"; id: string; dependencies: string[] }
   | { type: "compile_tasks" }
   | { type: "claim_ready_tasks"; ids: string[] }
-  | { type: "advance_task"; id: string; from: "implementing" | "reviewing"; to: "reviewing" | "done" }
+  | {
+      type: "advance_task";
+      id: string;
+      from: "implementing" | "reviewing";
+      to: "reviewing" | "done";
+    }
   | { type: "abandon_task"; id: string }
   | { type: "clear_tasks" };
 ```
@@ -249,7 +261,11 @@ Input:
 ```ts
 {
   tasks: Array<
-    | { id: string; type: "data"; data: { title?: string; prompt?: string; profile?: string; phase?: number } }
+    | {
+        id: string;
+        type: "data";
+        data: { title?: string; prompt?: string; profile?: string; phase?: number };
+      }
     | { id: string; type: "blockers"; data: { dependencies: string[] } }
     | { id: string; type: "advance"; data?: {} }
     | { id: string; type: "abandon"; data?: {} }
@@ -375,7 +391,9 @@ This is the only reset tool. Do not overload `write_tasks` with a replace mode.
 Input:
 
 ```ts
-{ count: number }
+{
+  count: number;
+}
 ```
 
 Behavior:

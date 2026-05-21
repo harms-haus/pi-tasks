@@ -64,7 +64,7 @@ export function makeBoardWithStatuses(
   const board = createEmptyBoard();
   for (let i = 0; i < tasks.length; i++) {
     const t = tasks[i];
-    const phaseCount = board.tasks.filter(existing => existing.phase === t.phase).length;
+    const phaseCount = board.tasks.filter((existing) => existing.phase === t.phase).length;
     board.tasks.push({
       id: `t-${t.phase}.${phaseCount + 1}`,
       title: t.title,
