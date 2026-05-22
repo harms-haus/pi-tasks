@@ -5,6 +5,7 @@ import { createEmptyBoard } from "../engine";
 import {
   getBoard,
   setBoard,
+  setBoardQuiet,
   getBoardRef,
   incrementAutoContinue,
   resetState,
@@ -13,8 +14,6 @@ import {
   updateUI,
   getLastToolWasAdvance,
   setLastToolWasAdvance,
-  consumeAdvanceWarning,
-  setAdvanceWarningPending,
 } from "../state";
 import { createMockContext, createMockAPI } from "./helpers/mocks";
 
@@ -250,6 +249,47 @@ describe("state", () => {
     });
   });
 
+  // ── setBoardQuiet ──
+
+  describe("setBoardQuiet", () => {
+    it("replaces board without resetting auto-continue counter", () => {
+      incrementAutoContinue(); // 1
+      incrementAutoContinue(); // 2
+      incrementAutoContinue(); // 3
+
+      setBoardQuiet(makeSampleBoard());
+
+      // Counter should NOT have been reset
+      expect(incrementAutoContinue()).toBe(4);
+    });
+
+    it("returns deep copy via getBoard", () => {
+      const board = makeSampleBoard();
+      setBoardQuiet(board);
+
+      // getBoard should return the same data
+      const retrieved = getBoard();
+      expect(retrieved).toEqual(board);
+
+      // Mutating getBoard result should not affect stored state
+      retrieved.tasks[0].title = "MUTATED";
+      const fresh = getBoard();
+      expect(fresh.tasks[0].title).not.toBe("MUTATED");
+    });
+
+    it("stores a deep copy (mutations to original don't affect state)", () => {
+      const original = makeSampleBoard();
+      setBoardQuiet(original);
+
+      // Mutate the original
+      original.tasks[0].title = "MUTATED";
+
+      // getBoard should not reflect the mutation
+      const board = getBoard();
+      expect(board.tasks[0].title).not.toBe("MUTATED");
+    });
+  });
+
   // ── persistEntries ──
 
   describe("persistEntries", () => {
@@ -265,16 +305,16 @@ describe("state", () => {
       expect(appendEntry).toHaveBeenNthCalledWith(2, CUSTOM_SNAPSHOT_TYPE, expect.any(Object));
     });
 
-    it("passes a deep copy of the snapshot (not the original reference)", () => {
+    it("passes the snapshot directly (no clone)", () => {
       const { api, appendEntry } = createMockAPI();
       const snapshot = makeSampleBoard();
 
       persistEntries(api, { type: "clear_tasks" }, snapshot);
 
       const passedSnapshot = appendEntry.mock.calls[1][1] as TaskBoardSnapshot;
-      // Should be structurally equal but not the same reference
+      // Should be structurally equal and the same reference (no clone)
       expect(passedSnapshot).toEqual(snapshot);
-      expect(passedSnapshot).not.toBe(snapshot);
+      expect(passedSnapshot).toBe(snapshot);
     });
   });
 
@@ -465,22 +505,10 @@ describe("state", () => {
       expect(getLastToolWasAdvance()).toBe(true);
     });
 
-    it("consumeAdvanceWarning returns false when not set", () => {
-      expect(consumeAdvanceWarning()).toBe(false);
-    });
-
-    it("consumeAdvanceWarning returns true then resets", () => {
-      setAdvanceWarningPending(true);
-      expect(consumeAdvanceWarning()).toBe(true);
-      expect(consumeAdvanceWarning()).toBe(false);
-    });
-
-    it("resetState clears both flags", () => {
+    it("resetState clears flag", () => {
       setLastToolWasAdvance(true);
-      setAdvanceWarningPending(true);
       resetState();
       expect(getLastToolWasAdvance()).toBe(false);
-      expect(consumeAdvanceWarning()).toBe(false);
     });
   });
 });

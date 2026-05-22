@@ -37,11 +37,12 @@ describe("index (default export)", () => {
     expect(toolNames).toContain("get_ready_tasks");
     expect(toolNames).toContain("advance_tasks");
 
-    // Event handlers registered (6 events)
-    expect(mockObj.on).toHaveBeenCalledTimes(6);
+    // Event handlers registered (7 events)
+    expect(mockObj.on).toHaveBeenCalledTimes(7);
     const eventNames = mockObj.on.mock.calls.map((call: unknown) => (call as [string, unknown])[0]);
     expect(eventNames).toContain("session_start");
     expect(eventNames).toContain("session_tree");
+    expect(eventNames).toContain("session_shutdown");
     expect(eventNames).toContain("before_agent_start");
     expect(eventNames).toContain("agent_end");
     expect(eventNames).toContain("input");

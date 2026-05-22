@@ -206,6 +206,67 @@ describe("applyEdits — abandon", () => {
     );
   });
 
+  it("abandon from all non-terminal statuses succeeds", () => {
+    // draft
+    let board = createEmptyBoard();
+    board = writeTasks(
+      board,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      NOW,
+    );
+    let result = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
+    expect(result.tasks[0].status).toBe("abandoned");
+
+    // configured (blocked by another task)
+    board = makeCompiledBoard([
+      { title: "A", prompt: "P", profile: "c", phase: 1 },
+      { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["t-1.1"] },
+    ]);
+    result = applyEdits(board, [{ id: "t-1.2", type: "abandon" }], NOW);
+    expect(result.tasks[1].status).toBe("abandoned");
+
+    // ready
+    board = makeCompiledBoard([{ title: "C", prompt: "P", profile: "c", phase: 1 }]);
+    result = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
+    expect(result.tasks[0].status).toBe("abandoned");
+
+    // implementing
+    board = makeCompiledBoard([{ title: "D", prompt: "P", profile: "c", phase: 1 }]);
+    board = claimReadyTasks(board, 1, NOW).board;
+    result = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
+    expect(result.tasks[0].status).toBe("abandoned");
+
+    // reviewing
+    board = makeCompiledBoard([{ title: "E", prompt: "P", profile: "c", phase: 1 }]);
+    board = claimReadyTasks(board, 1, NOW).board;
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    result = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
+    expect(result.tasks[0].status).toBe("abandoned");
+  });
+
+  it("abandon rejects from terminal statuses", () => {
+    // done
+    let board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
+    board = claimReadyTasks(board, 1, NOW).board;
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
+    expect(board.tasks[0].status).toBe("done");
+    expect(() => applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW)).toThrow(
+      /Already resolved/,
+    );
+
+    // abandoned
+    board = makeCompiledBoard([{ title: "B", prompt: "P", profile: "c", phase: 1 }]);
+    board = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
+    expect(board.tasks[0].status).toBe("abandoned");
+    expect(() => applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW)).toThrow(
+      /Already resolved/,
+    );
+  });
+
   it("does not satisfy dependencies (dependents stay blocked)", () => {
     let board = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },

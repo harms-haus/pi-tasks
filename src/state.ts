@@ -3,13 +3,13 @@ import type { TaskBoardSnapshot } from "./types";
 import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE } from "./types";
 import { createEmptyBoard } from "./engine";
 import { isValidSnapshot, cloneBoard, getStatusCounts } from "./validation";
+import { phaseLabel } from "./formatting";
 
 // ── Mutable State ──
 
 let board: TaskBoardSnapshot = createEmptyBoard();
 let autoContinueCount = 0;
 let lastToolWasAdvance = false;
-let advanceWarningPending = false;
 
 // ── State Accessors ──
 
@@ -22,6 +22,11 @@ export function getBoard(): TaskBoardSnapshot {
 export function setBoard(newBoard: TaskBoardSnapshot): void {
   board = cloneBoard(newBoard);
   autoContinueCount = 0;
+}
+
+/** Replaces the board state without resetting the auto-continue counter. Used internally by the auto-continue loop. */
+export function setBoardQuiet(newBoard: TaskBoardSnapshot): void {
+  board = cloneBoard(newBoard);
 }
 
 /** Returns a readonly reference to the current board (no clone — caller must not mutate). */
@@ -44,26 +49,12 @@ export function setLastToolWasAdvance(value: boolean): void {
   lastToolWasAdvance = value;
 }
 
-/** Check and consume the advance warning flag. Returns true if warning should be shown, then resets. */
-export function consumeAdvanceWarning(): boolean {
-  if (advanceWarningPending) {
-    advanceWarningPending = false;
-    return true;
-  }
-  return false;
-}
-
-/** Set the advance warning pending flag. */
-export function setAdvanceWarningPending(value: boolean): void {
-  advanceWarningPending = value;
-}
 
 /** Resets all mutable state. For testing only. */
 export function resetState(): void {
   board = createEmptyBoard();
   autoContinueCount = 0;
   lastToolWasAdvance = false;
-  advanceWarningPending = false;
 }
 
 // ── State Reconstruction ──
@@ -98,7 +89,7 @@ export function persistEntries(
   snapshot: TaskBoardSnapshot,
 ): void {
   pi.appendEntry(CUSTOM_EVENT_TYPE, event);
-  pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(snapshot));
+  pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, snapshot);
 }
 
 // ── UI Sync ──
@@ -119,13 +110,11 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   const total = snapshot.tasks.length;
 
   const activePhase = snapshot.phases.find((p) => p.status === "active");
-  const phaseLabel = activePhase
-    ? activePhase.title
-      ? `Phase ${activePhase.phase}: ${activePhase.title}`
-      : `Phase ${activePhase.phase}`
+  const label = activePhase
+    ? phaseLabel(snapshot, activePhase.phase)
     : "No active phase";
 
-  ctx.ui.setStatus("til-done", `${done}/${total} - ${phaseLabel}`);
+  ctx.ui.setStatus("til-done", `${done}/${total} - ${label}`);
 
   const activeLines: string[] = [];
   for (const t of snapshot.tasks) {

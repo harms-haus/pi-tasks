@@ -385,6 +385,104 @@ describe("isValidSnapshot", () => {
 });
 
 // ═══════════════════════════════════════════
+// 8b. isValidSnapshot - hardened validation
+// ═══════════════════════════════════════════
+
+describe("isValidSnapshot - hardened validation", () => {
+  it("rejects snapshot with task missing id", () => {
+    const snap = {
+      version: 1,
+      tasks: [{ title: "Test", status: "draft", phase: 1, dependencies: [] }],
+      phases: [],
+    };
+    expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("rejects snapshot with task having invalid status", () => {
+    const snap = {
+      version: 1,
+      tasks: [
+        { id: "t-1", title: "Test", status: "unknown", phase: 1, dependencies: [] },
+      ],
+      phases: [],
+    };
+    expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("rejects snapshot with task having non-string dependency elements", () => {
+    const snap = {
+      version: 1,
+      tasks: [
+        { id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: [123] },
+      ],
+      phases: [],
+    };
+    expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("rejects snapshot with task having non-array dependencies", () => {
+    const snap = {
+      version: 1,
+      tasks: [
+        { id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: "bad" },
+      ],
+      phases: [],
+    };
+    expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("rejects snapshot with phase having invalid status", () => {
+    const snap = {
+      version: 1,
+      tasks: [],
+      phases: [{ phase: 1, status: "unknown" }],
+    };
+    expect(isValidSnapshot(snap)).toBe(false);
+  });
+
+  it("accepts valid snapshot with tasks and phases", () => {
+    const snap = {
+      version: 1,
+      tasks: [
+        {
+          id: "t-1",
+          title: "Test",
+          status: "draft",
+          phase: 1,
+          dependencies: [],
+        },
+      ],
+      phases: [{ phase: 1, status: "active" }],
+    };
+    expect(isValidSnapshot(snap)).toBe(true);
+  });
+
+  it("accepts snapshot with empty tasks and phases arrays", () => {
+    expect(isValidSnapshot(makeBoard())).toBe(true);
+  });
+
+  it("accepts snapshot with tasks having extra fields (backward compat)", () => {
+    const snap = {
+      version: 1,
+      tasks: [
+        {
+          id: "t-1",
+          title: "Test",
+          status: "draft",
+          phase: 1,
+          dependencies: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          extra: "field",
+        },
+      ],
+      phases: [{ phase: 1, status: "pending", title: "Phase 1" }],
+    };
+    expect(isValidSnapshot(snap)).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════
 // 9. cloneBoard
 // ═══════════════════════════════════════════
 

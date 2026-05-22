@@ -5,7 +5,7 @@ import { getStatusCounts } from "./validation";
 // ── Plain-Text Formatting (for LLM tool output) ──
 
 /** Returns a phase label string including the title if available. */
-function phaseLabel(board: TaskBoardSnapshot, phaseNum: number): string {
+export function phaseLabel(board: TaskBoardSnapshot, phaseNum: number): string {
   const rec = board.phases.find((p) => p.phase === phaseNum);
   return rec?.title ? `Phase ${phaseNum}: ${rec.title}` : `Phase ${phaseNum}`;
 }
@@ -23,7 +23,7 @@ function formatTaskLine(task: TaskRecord): string {
 /** Format the full board as a plain-text summary for LLM consumption. */
 export function formatBoardText(
   board: TaskBoardSnapshot,
-  options?: { activePhaseOnly?: boolean },
+  options?: { activePhaseOnly?: boolean; counts?: Record<TaskStatus, number> },
 ): string {
   if (board.tasks.length === 0) return "No tasks on the board.";
 
@@ -52,7 +52,7 @@ export function formatBoardText(
   }
 
   // Summary line (always across ALL phases)
-  const counts = getStatusCounts(board);
+  const counts = options?.counts ?? getStatusCounts(board);
   const parts: string[] = [];
   for (const [status, count] of Object.entries(counts)) {
     if (count > 0) parts.push(`${count} ${status}`);
@@ -63,9 +63,14 @@ export function formatBoardText(
 }
 
 /** Format a short summary for tool output headers. */
-export function formatSummaryLine(board: TaskBoardSnapshot): string {
+export function formatSummaryLine(
+  board: TaskBoardSnapshot,
+  counts?: Record<TaskStatus, number>,
+): string {
   const total = board.tasks.length;
-  const done = board.tasks.filter((t) => t.status === "done" || t.status === "abandoned").length;
+  const done = counts
+    ? counts.done + counts.abandoned
+    : board.tasks.filter((t) => t.status === "done" || t.status === "abandoned").length;
   const activePhase = board.phases.find((p) => p.status === "active");
   return activePhase
     ? `${phaseLabel(board, activePhase.phase)} · ${done}/${total} done`
@@ -81,7 +86,7 @@ export function formatClaimedTaskDetails(tasks: TaskRecord[]): string {
       const shown = promptLines.slice(0, 3);
       lines.push(...shown);
       if (promptLines.length > 3) {
-        lines.push("  ... (ctrl-o to expand)");
+        lines.push("  ... (truncated)");
       }
       return lines.join("\n");
     })
@@ -189,6 +194,7 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
 
 /** Format the "all done" terminal message. */
 export function formatAllDoneMessage(board: TaskBoardSnapshot): string {
-  const lastPhase = board.phases.length > 0 ? board.phases[board.phases.length - 1].phase : 0;
+  if (board.phases.length === 0) return "All tasks resolved.";
+  const lastPhase = board.phases[board.phases.length - 1].phase;
   return `All tasks resolved. ${phaseLabel(board, lastPhase)} complete.`;
 }

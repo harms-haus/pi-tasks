@@ -48,6 +48,7 @@ export const EditTasksParams = Type.Object({
         type: StringEnum(["abandon"]),
       }),
     ]),
+    { maxItems: 50 },
   ),
 });
 
@@ -60,5 +61,5 @@ export const GetReadyTasksParams = Type.Object({
 });
 
 export const AdvanceTasksParams = Type.Object({
-  ids: Type.Array(Type.String(), { description: "Task IDs to advance" }),
+  ids: Type.Array(Type.String(), { description: "Task IDs to advance", maxItems: 50 }),
 });

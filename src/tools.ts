@@ -13,8 +13,7 @@ import {
   GetReadyTasksParams,
   AdvanceTasksParams,
 } from "./schemas";
-import { cloneBoard } from "./validation";
-import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE, TERMINAL_STATUSES } from "./types";
+import { CUSTOM_EVENT_TYPE, CUSTOM_SNAPSHOT_TYPE, TERMINAL_STATUSES, ACTIVE_STATUSES } from "./types";
 import type { TaskBoardSnapshot, TaskEdit, TaskWorkflowEvent } from "./types";
 import {
   writeTasks,
@@ -22,9 +21,16 @@ import {
   compileBoard,
   createEmptyBoard,
   claimReadyTasks,
-  getStatusCounts,
 } from "./engine";
-import { getBoard, setBoard, persistEntries, updateUI, consumeAdvanceWarning } from "./state";
+import { getStatusCounts } from "./validation";
+import {
+  getBoardRef,
+  setBoard,
+  persistEntries,
+  updateUI,
+  getLastToolWasAdvance,
+  setLastToolWasAdvance,
+} from "./state";
 import { loadConfig, resolvePhasePrompt } from "./config";
 import {
   formatBoardText,
@@ -62,7 +68,11 @@ function makeErrorResult(
   };
 }
 
-/** Check for phases that just completed (before vs after) and set pending phase prompt. */
+/**
+ * Check for phases that just completed (before vs after) and set pending phase prompt.
+ * MUTATES `afterBoard` — sets `afterBoard.pendingPhasePrompt` directly.
+ * Returns void; callers must read from the mutated board.
+ */
 async function checkAndSetPhaseCompletion(
   beforePhases: TaskBoardSnapshot["phases"],
   afterBoard: TaskBoardSnapshot,
@@ -139,7 +149,7 @@ export function createWriteTasksTool(
 
     // eslint-disable-next-line @typescript-eslint/require-await
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const board = getBoard();
+      const board = getBoardRef();
       const now = new Date().toISOString();
 
       try {
@@ -230,7 +240,7 @@ export function createEditTasksTool(
     promptGuidelines: undefined,
 
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const board = getBoard();
+      const board = getBoardRef();
       const now = new Date().toISOString();
 
       // Snapshot before-phases for phase completion detection
@@ -280,16 +290,17 @@ export function createEditTasksTool(
           }
           pi.appendEntry(CUSTOM_EVENT_TYPE, event);
         }
-        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(newBoard));
+        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, newBoard);
         updateUI(ctx, newBoard);
 
-        const summary = formatSummaryLine(newBoard);
+        const counts = getStatusCounts(newBoard);
+        const summary = formatSummaryLine(newBoard, counts);
         const hasStructuralEdits = edits.some((e) => e.type === "data" || e.type === "blockers");
         const allTerminal = newBoard.tasks.every((t) => TERMINAL_STATUSES.has(t.status));
         const boardText =
           hasStructuralEdits || allTerminal
-            ? formatBoardText(newBoard)
-            : formatBoardText(newBoard, { activePhaseOnly: true });
+            ? formatBoardText(newBoard, { counts })
+            : formatBoardText(newBoard, { activePhaseOnly: true, counts });
         return makeSuccessResult(
           `Applied ${edits.length} edit(s). ${summary}\n\n${boardText}`,
           newBoard,
@@ -333,7 +344,7 @@ export function createCompileTasksTool(
     promptGuidelines: undefined,
 
     async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
-      const board = getBoard();
+      const board = getBoardRef();
       const now = new Date().toISOString();
 
       // Snapshot before-phases for phase completion detection
@@ -353,9 +364,9 @@ export function createCompileTasksTool(
 
         const counts = getStatusCounts(newBoard);
         const readyCount = counts.ready;
-        const summary = formatSummaryLine(newBoard);
+        const summary = formatSummaryLine(newBoard, counts);
         return makeSuccessResult(
-          `Board compiled. ${summary}. ${readyCount} task(s) ready to claim.\n\n${formatBoardText(newBoard)}`,
+          `Board compiled. ${summary}. ${readyCount} task(s) ready to claim.\n\n${formatBoardText(newBoard, { counts })}`,
           newBoard,
         );
       } catch (err) {
@@ -392,6 +403,15 @@ export function createClearTasksTool(
 
     // eslint-disable-next-line @typescript-eslint/require-await
     async execute(_toolCallId, _params, _signal, _onUpdate, ctx) {
+      const board = getBoardRef();
+
+      if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
+        return makeErrorResult(
+          "Cannot clear board while tasks are implementing or reviewing. Complete or advance active tasks first.",
+          board,
+        );
+      }
+
       const emptyBoard = createEmptyBoard();
       setBoard(emptyBoard);
 
@@ -432,7 +452,7 @@ export function createGetReadyTasksTool(
 
     // eslint-disable-next-line @typescript-eslint/require-await
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const board = getBoard();
+      const board = getBoardRef();
       const now = new Date().toISOString();
 
       try {
@@ -519,7 +539,10 @@ export function createAdvanceTasksTool(
     ],
 
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-      const board = getBoard();
+      const wasConsecutive = getLastToolWasAdvance();
+      setLastToolWasAdvance(true);
+
+      const board = getBoardRef();
       const now = new Date().toISOString();
       const beforePhases = board.phases.map((p) => ({ ...p }));
 
@@ -529,8 +552,6 @@ export function createAdvanceTasksTool(
       try {
         const newBoard = applyEdits(board, edits, now);
         await checkAndSetPhaseCompletion(beforePhases, newBoard);
-
-        const hasWarning = consumeAdvanceWarning();
 
         setBoard(newBoard);
 
@@ -548,17 +569,18 @@ export function createAdvanceTasksTool(
               : { type: "advance_task", id: edit.id, from: "implementing", to: "reviewing" };
           pi.appendEntry(CUSTOM_EVENT_TYPE, event);
         }
-        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, cloneBoard(newBoard));
+        pi.appendEntry(CUSTOM_SNAPSHOT_TYPE, newBoard);
         updateUI(ctx, newBoard);
 
+        const counts = getStatusCounts(newBoard);
         const allTerminal = newBoard.tasks.every((t) => TERMINAL_STATUSES.has(t.status));
         const boardText = allTerminal
-          ? formatBoardText(newBoard)
-          : formatBoardText(newBoard, { activePhaseOnly: true });
+          ? formatBoardText(newBoard, { counts })
+          : formatBoardText(newBoard, { activePhaseOnly: true, counts });
 
-        const summary = formatSummaryLine(newBoard);
+        const summary = formatSummaryLine(newBoard, counts);
         let text = `Advanced ${edits.length} task(s). ${summary}\n\n${boardText}`;
-        if (hasWarning) {
+        if (wasConsecutive) {
           text = `⚠️ Review should not be skipped. Please actually review the work before advancing to done.\n\n${text}`;
         }
         return makeSuccessResult(text, newBoard);

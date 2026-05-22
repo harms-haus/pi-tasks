@@ -127,16 +127,59 @@ export function hasBlockedNonTerminalTasks(board: TaskBoardSnapshot): boolean {
 
 // ── Snapshot Validation ──
 
-/** Type guard for a valid TaskBoardSnapshot. Checks version field and basic structure. */
+const VALID_TASK_STATUSES = new Set([
+  "draft",
+  "configured",
+  "ready",
+  "implementing",
+  "reviewing",
+  "done",
+  "abandoned",
+]);
+
+const VALID_PHASE_STATUSES = new Set(["pending", "active", "completed"]);
+
+function isValidTask(t: unknown): boolean {
+  if (typeof t !== "object" || t === null) return false;
+  const task = t as Record<string, unknown>;
+  return (
+    typeof task.id === "string" &&
+    typeof task.title === "string" &&
+    typeof task.status === "string" &&
+    VALID_TASK_STATUSES.has(task.status) &&
+    typeof task.phase === "number" &&
+    Array.isArray(task.dependencies) &&
+    (task.dependencies as unknown[]).every((d) => typeof d === "string")
+  );
+}
+
+function isValidPhaseRecord(p: unknown): boolean {
+  if (typeof p !== "object" || p === null) return false;
+  const phase = p as Record<string, unknown>;
+  return (
+    typeof phase.phase === "number" &&
+    typeof phase.status === "string" &&
+    VALID_PHASE_STATUSES.has(phase.status)
+  );
+}
+
+/** Type guard for a valid TaskBoardSnapshot. Checks version field, structure, and task/phase validity. */
 export function isValidSnapshot(data: unknown): data is TaskBoardSnapshot {
   if (typeof data !== "object" || data === null) return false;
   const obj = data as Record<string, unknown>;
-  return obj.version === 1 && Array.isArray(obj.tasks) && Array.isArray(obj.phases);
+  if (obj.version !== 1 || !Array.isArray(obj.tasks) || !Array.isArray(obj.phases)) return false;
+  if (!(obj.tasks as unknown[]).every(isValidTask)) return false;
+  if (!(obj.phases as unknown[]).every(isValidPhaseRecord)) return false;
+  return true;
 }
 
 // ── Deep Clone ──
 
-/** Creates a deep copy of a TaskBoardSnapshot. */
+/**
+ * Creates a deep copy of a TaskBoardSnapshot.
+ * Uses JSON roundtrip (instead of structuredClone) because benchmarks show it's
+ * faster for plain-object graphs without special types.
+ */
 export function cloneBoard(board: TaskBoardSnapshot): TaskBoardSnapshot {
   return JSON.parse(JSON.stringify(board)) as TaskBoardSnapshot;
 }

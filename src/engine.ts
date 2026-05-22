@@ -10,6 +10,14 @@ import {
   cloneBoard,
 } from "./validation";
 
+// ── Internal Helpers ──
+
+function guardNoActiveTasks(board: TaskBoardSnapshot, message: string): void {
+  if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
+    throw new Error(message);
+  }
+}
+
 // ── Board Creation ──
 
 export function createEmptyBoard(): TaskBoardSnapshot {
@@ -53,9 +61,7 @@ export function writeTasks(
   let startPhase: number;
 
   if (input.mode === "replace") {
-    if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
-      throw new Error("Cannot replace board while tasks are implementing or reviewing.");
-    }
+    guardNoActiveTasks(board, "Cannot replace board while tasks are implementing or reviewing.");
     result = createEmptyBoard();
     startPhase = 1;
   } else {
@@ -137,7 +143,8 @@ function recomputePhasesAndReadiness(
   const sortedNonTerminalPhases = [...nonTerminalPhases].sort((a, b) => a - b);
   const activePhase = sortedNonTerminalPhases[0];
 
-  board.phases = buildPhasesArray(allPhaseNumbers, activePhase, oldBoard, now);
+  const oldPhaseMap = new Map(oldBoard.phases.map((p) => [p.phase, p]));
+  board.phases = buildPhasesArray(allPhaseNumbers, activePhase, oldPhaseMap, now);
 
   markReadyTasksInActivePhase(board, activePhase);
 
@@ -160,13 +167,13 @@ function recomputePhasesAndReadiness(
 function buildPhasesArray(
   allPhaseNumbers: Set<number>,
   activePhase: number,
-  oldBoard: TaskBoardSnapshot,
+  oldPhaseMap: Map<number, { completedAt?: string; title?: string }>,
   now: string,
 ): TaskBoardSnapshot["phases"] {
   return [...allPhaseNumbers]
     .sort((a, b) => a - b)
     .map((phase) => {
-      const oldPhase = oldBoard.phases.find((p) => p.phase === phase);
+      const oldPhase = oldPhaseMap.get(phase);
       if (phase < activePhase) {
         return {
           phase,
@@ -317,6 +324,7 @@ function applyStateEdits(
   oldBoard: TaskBoardSnapshot,
   now: string,
 ): void {
+  let needsRecompute = false;
   for (const edit of edits) {
     const task = taskMap.get(edit.id);
     if (!task) continue;
@@ -329,15 +337,18 @@ function applyStateEdits(
         // Must be "reviewing" (validated above)
         task.status = "done";
         task.updatedAt = now;
-        recomputePhasesAndReadiness(board, oldBoard, now);
+        needsRecompute = true;
       }
     }
     // edit.type === "abandon" is the only other state type
     if (edit.type === "abandon") {
       task.status = "abandoned";
       task.updatedAt = now;
-      recomputePhasesAndReadiness(board, oldBoard, now);
+      needsRecompute = true;
     }
+  }
+  if (needsRecompute) {
+    recomputePhasesAndReadiness(board, oldBoard, now);
   }
 }
 
@@ -383,11 +394,10 @@ export function compileBoard(board: TaskBoardSnapshot, now: string): TaskBoardSn
     throw new Error("Cannot compile an empty board");
   }
 
-  if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
-    throw new Error(
-      "Cannot compile board while tasks are implementing or reviewing. Complete or advance active tasks first.",
-    );
-  }
+  guardNoActiveTasks(
+    board,
+    "Cannot compile board while tasks are implementing or reviewing. Complete or advance active tasks first.",
+  );
 
   const idSet = new Set(board.tasks.map((t) => t.id));
   if (idSet.size !== board.tasks.length) {
@@ -433,11 +443,10 @@ export function claimReadyTasks(
     throw new Error("count must be >= 1");
   }
 
-  if (board.tasks.some((t) => ACTIVE_STATUSES.has(t.status))) {
-    throw new Error(
-      "Cannot claim tasks while tasks are implementing or reviewing. Complete or advance active tasks first.",
-    );
-  }
+  guardNoActiveTasks(
+    board,
+    "Cannot claim tasks while tasks are implementing or reviewing. Complete or advance active tasks first.",
+  );
 
   const result = cloneBoard(board);
 

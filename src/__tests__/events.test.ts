@@ -6,9 +6,9 @@ import {
   resetState,
   getBoard,
   getLastToolWasAdvance,
-  consumeAdvanceWarning,
-  setAdvanceWarningPending,
+  setLastToolWasAdvance,
 } from "../state";
+import * as config from "../config";
 import { createEmptyBoard, writeTasks, compileBoard, applyEdits, claimReadyTasks } from "../engine";
 import { registerEventHandlers } from "../events";
 import { createMockAPI, createMockContext } from "./helpers/mocks";
@@ -103,7 +103,7 @@ describe("registerEventHandlers", () => {
     resetState();
   });
 
-  it("registers handlers for all 5 events", () => {
+  it("registers handlers for all 7 events", () => {
     const mockObj = createMockAPI();
     registerEventHandlers(mockObj.api);
 
@@ -112,11 +112,12 @@ describe("registerEventHandlers", () => {
     );
     expect(registeredEvents).toContain("session_start");
     expect(registeredEvents).toContain("session_tree");
+    expect(registeredEvents).toContain("session_shutdown");
     expect(registeredEvents).toContain("before_agent_start");
     expect(registeredEvents).toContain("agent_end");
     expect(registeredEvents).toContain("input");
     expect(registeredEvents).toContain("tool_result");
-    expect(mockObj.on.mock.calls).toHaveLength(6);
+    expect(mockObj.on.mock.calls).toHaveLength(7);
   });
 });
 
@@ -161,6 +162,17 @@ describe("session_start handler", () => {
     const currentBoard = getBoard();
     expect(currentBoard.tasks).toHaveLength(0);
   });
+
+  it("calls resetConfig", () => {
+    const resetConfigSpy = vi.spyOn(config, "resetConfig");
+    const ctx = createMockContext([]);
+
+    const handler = getHandler(mockAPI, "session_start");
+    handler({}, ctx);
+
+    expect(resetConfigSpy).toHaveBeenCalledTimes(1);
+    resetConfigSpy.mockRestore();
+  });
 });
 
 // ═══════════════════════════════════════════
@@ -190,6 +202,64 @@ describe("session_tree handler", () => {
     const currentBoard = getBoard();
     expect(currentBoard.tasks).toHaveLength(1);
     expect(ctx.ui.setStatus).toHaveBeenCalled();
+  });
+});
+
+// ═══════════════════════════════════════════
+// 3b. session_shutdown
+// ═══════════════════════════════════════════
+
+describe("session_shutdown handler", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let mockAPI: ReturnType<typeof createMockAPI>;
+
+  beforeEach(() => {
+    resetState();
+    vi.useFakeTimers();
+    mockAPI = createMockAPI();
+    api = mockAPI.api;
+    registerEventHandlers(api);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("clears countdown, resets state and config", () => {
+    // Set up a board with tasks so agent_end will schedule a countdown
+    setBoard(makeBoardWithReadyTask());
+    const ctx = createMockContext();
+
+    // Trigger agent_end to start a countdown
+    const agentEndHandler = getHandler(mockAPI, "agent_end");
+    agentEndHandler({ messages: [{ role: "assistant", stopReason: "complete" }] }, ctx);
+
+    // Countdown should be active
+    expect(ctx.ui.setWidget).toHaveBeenCalledWith(
+      "phased-tasks-countdown",
+      ["⏳ Auto-continuing in 3s... (type anything to interrupt)"],
+      { placement: "aboveEditor" },
+    );
+
+    // Now call session_shutdown
+    const resetConfigSpy = vi.spyOn(config, "resetConfig");
+    const shutdownHandler = getHandler(mockAPI, "session_shutdown");
+    shutdownHandler({}, ctx);
+
+    // Countdown should be cleared
+    expect(ctx.ui.setWidget).toHaveBeenCalledWith("phased-tasks-countdown", undefined);
+
+    // State should be reset (empty board)
+    const currentBoard = getBoard();
+    expect(currentBoard.tasks).toHaveLength(0);
+
+    // Config should be reset
+    expect(resetConfigSpy).toHaveBeenCalledTimes(1);
+    resetConfigSpy.mockRestore();
+
+    // Advance time — no message should be sent (countdown was cancelled)
+    vi.advanceTimersByTime(5000);
+    expect(mockAPI.sendUserMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -395,7 +465,7 @@ describe("agent_end handler", () => {
       expect.objectContaining({
         customType: "phased-tasks-notice",
         content: expect.stringContaining(
-          `Auto-continue limit reached (${MAX_AUTO_CONTINUE} iterations)`,
+          `Auto-continue limit reached (${MAX_AUTO_CONTINUE} iterations). 1 task(s) remain unresolved`,
         ),
         display: true,
       }),
@@ -422,6 +492,26 @@ describe("agent_end handler", () => {
     // The pendingPhasePrompt should have been cleared
     const currentBoard = getBoard();
     expect(currentBoard.pendingPhasePrompt).toBeUndefined();
+  });
+
+  it("sends visible phase completion notice when consuming pendingPhasePrompt", () => {
+    const board = makeBoardWithReadyTask();
+    board.pendingPhasePrompt = { phase: 1, message: "Phase 1 is done! Onward!" };
+    setBoard(board);
+    const ctx = createMockContext();
+
+    const handler = getHandler(mockAPI, "agent_end");
+    handler({ messages: [{ role: "assistant", stopReason: "complete" }] }, ctx);
+
+    // Phase completion notice is sent immediately (before countdown)
+    expect(mockAPI.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customType: "phased-tasks-notice",
+        content: "Phase 1 complete.",
+        display: true,
+      }),
+      { triggerTurn: false },
+    );
   });
 
   it("shows countdown widget before auto-continue", () => {
@@ -1077,43 +1167,29 @@ describe("tool_result handler", () => {
     registerEventHandlers(api);
   });
 
-  it("consecutive advance_tasks sets warning flag", () => {
+  it("advance_tasks does not reset lastToolWasAdvance", () => {
     const toolResultHandler = getHandler(mockAPI, "tool_result");
 
-    // First advance — sets lastToolWasAdvance but no warning
+    // Set flag manually (simulating what advance_tasks execute does)
+    setLastToolWasAdvance(true);
+    expect(getLastToolWasAdvance()).toBe(true);
+
+    // Advance tool_result should NOT reset it
     toolResultHandler(mockAdvanceResult);
     expect(getLastToolWasAdvance()).toBe(true);
-    expect(consumeAdvanceWarning()).toBe(false);
-
-    // Second consecutive advance — triggers warning
-    toolResultHandler(mockAdvanceResult);
-    expect(consumeAdvanceWarning()).toBe(true);
-    // Warning is consumed, so second call returns false
-    expect(consumeAdvanceWarning()).toBe(false);
   });
 
   it("non-advance tool resets tracking", () => {
     const toolResultHandler = getHandler(mockAPI, "tool_result");
 
-    // First advance
-    toolResultHandler(mockAdvanceResult);
-    expect(getLastToolWasAdvance()).toBe(true);
-
     // Non-advance tool resets tracking
     toolResultHandler(mockOtherResult);
     expect(getLastToolWasAdvance()).toBe(false);
-
-    // Another advance — first of a new streak, no warning
-    toolResultHandler(mockAdvanceResult);
-    expect(consumeAdvanceWarning()).toBe(false);
   });
 
   it("session_start resets tracking", () => {
-    const toolResultHandler = getHandler(mockAPI, "tool_result");
-
-    // Set up tracking state
-    toolResultHandler(mockAdvanceResult);
-    setAdvanceWarningPending(true);
+    // Set up tracking state directly (simulates advance_tasks execute)
+    setLastToolWasAdvance(true);
     expect(getLastToolWasAdvance()).toBe(true);
 
     // session_start resets it
@@ -1122,15 +1198,11 @@ describe("tool_result handler", () => {
     sessionStartHandler({}, ctx);
 
     expect(getLastToolWasAdvance()).toBe(false);
-    expect(consumeAdvanceWarning()).toBe(false);
   });
 
   it("session_tree resets tracking", () => {
-    const toolResultHandler = getHandler(mockAPI, "tool_result");
-
-    // Set up tracking state
-    toolResultHandler(mockAdvanceResult);
-    setAdvanceWarningPending(true);
+    // Set up tracking state directly (simulates advance_tasks execute)
+    setLastToolWasAdvance(true);
     expect(getLastToolWasAdvance()).toBe(true);
 
     // session_tree resets it
@@ -1139,15 +1211,11 @@ describe("tool_result handler", () => {
     sessionTreeHandler({}, ctx);
 
     expect(getLastToolWasAdvance()).toBe(false);
-    expect(consumeAdvanceWarning()).toBe(false);
   });
 
   it("input resets tracking", () => {
-    const toolResultHandler = getHandler(mockAPI, "tool_result");
-
-    // Set up tracking state
-    toolResultHandler(mockAdvanceResult);
-    setAdvanceWarningPending(true);
+    // Set up tracking state directly (simulates advance_tasks execute)
+    setLastToolWasAdvance(true);
     expect(getLastToolWasAdvance()).toBe(true);
 
     // input resets it
@@ -1156,6 +1224,5 @@ describe("tool_result handler", () => {
     inputHandler({}, ctx);
 
     expect(getLastToolWasAdvance()).toBe(false);
-    expect(consumeAdvanceWarning()).toBe(false);
   });
 });

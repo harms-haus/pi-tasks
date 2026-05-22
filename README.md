@@ -99,7 +99,7 @@ Create the database tables for ...
 
 ▶️ t-1.2: Create API endpoints  (coder)
 Build REST endpoints for ...
-  ... (ctrl-o to expand)
+  ... (truncated)
 
 Review each claimed task and advance through
 implementing → reviewing → done using advance_tasks.
@@ -153,7 +153,7 @@ Batch-edit tasks on the board. Supports three edit types. Edits are atomic — i
 
 | Parameter | Type    | Required | Description                         |
 | --------- | ------- | -------- | ----------------------------------- |
-| `tasks`   | `array` | Yes      | Array of edit objects (mixed types) |
+| `tasks`   | `array` | Yes      | Array of edit objects (mixed types, max 50 items) |
 
 **Type: `data`** — modify task fields
 
@@ -209,7 +209,7 @@ Claim ready tasks for implementation. Moves claimed tasks to `implementing` stat
 
 Tasks are ordered by phase ascending, then by creation order. Cannot claim while any task is `implementing` or `reviewing`.
 
-Claimed task output shows the first 3 lines of each task's prompt, followed by `... (ctrl-o to expand)` if the prompt is longer. The board display after claiming shows only the active phase.
+Claimed task output shows the first 3 lines of each task's prompt, followed by `... (truncated)` if the prompt is longer. The board display after claiming shows only the active phase.
 
 Error messages distinguish between:
 
@@ -223,7 +223,7 @@ Advance tasks through their lifecycle: `implementing` → `reviewing` → `done`
 
 | Parameter | Type       | Required | Description                  |
 | --------- | ---------- | -------- | ---------------------------- |
-| `ids`     | `string[]` | Yes      | Array of task IDs to advance |
+| `ids`     | `string[]` | Yes      | Array of task IDs to advance (max 50 items) |
 
 Tasks must be in `implementing` or `reviewing` status. Duplicate IDs in the array are deduplicated.
 
@@ -236,6 +236,8 @@ The board display after advancing shows only the active phase (or the full board
 ### `clear_tasks`
 
 Clear the entire board. Removes all tasks, phases, and resets state. Takes no parameters.
+
+Cannot clear the board while any task is `implementing` or `reviewing`. Complete or advance active tasks first.
 
 ## Task Lifecycle
 
@@ -274,7 +276,7 @@ Phase status tracking:
 | `active`     | Current phase; tasks can become ready          |
 | `completed`  | All tasks are terminal (`done` or `abandoned`) |
 
-Phase completion triggers an optional [prompt template](#configuration) and can trigger auto-continue.
+When a phase completes and actionable tasks remain, a visible "Phase N complete." notification is sent to the user. If a [prompt template](#configuration) is configured, the template message is also injected as hidden context for the next agent turn. When the final phase completes (all tasks terminal), the board summary in the tool output reflects completion without a separate notification. Phase completion can trigger auto-continue.
 
 ## Dependencies
 
@@ -308,7 +310,7 @@ Create `.pi/phased-tasks.json` in your project root:
 
 The template is resolved by replacing `{phase}` with the completed phase number. If no template is configured, phase completion is detected but no additional prompt is injected.
 
-Configuration is loaded once per session and cached. It resets on `session_tree` events (i.e., when the session branch changes).
+Configuration is loaded once per session and cached. It resets on `session_start`, `session_tree`, and `session_shutdown` events (i.e., whenever the session initializes or the branch changes).
 
 ## Auto-Continue
 
@@ -326,7 +328,7 @@ The auto-continue uses a 3-second countdown timer. In UI mode, a countdown widge
 
 Auto-continue stops after **20 iterations** (`MAX_AUTO_CONTINUE`). When the limit is reached, a visible notice is sent to the user:
 
-> Auto-continue limit reached (20 iterations). Remaining tasks were not resolved. Take over manually.
+> Auto-continue limit reached (20 iterations). N task(s) remain unresolved. Take over manually.
 
 The counter resets whenever the board is mutated via `setBoard()`.
 
@@ -344,6 +346,8 @@ The extension persists two types of custom entries to the session tree:
 | `phased-tasks:snapshot` | Full board snapshot after each mutation                         |
 
 On `session_start` and `session_tree` events, the board is reconstructed by scanning the session branch in reverse for the latest valid snapshot.
+
+On `session_shutdown`, all in-memory state is reset (board, auto-continue counter, advance-tracking flag) and any active countdown timers are cleared.
 
 ## Status Bar Integration
 
@@ -380,7 +384,7 @@ src/
 ├── state.ts          # Mutable board state, session reconstruction, persistence helpers, UI sync
 ├── schemas.ts        # TypeBox schemas for tool parameters (extracted from tools.ts)
 ├── tools.ts          # Tool definitions: execute, renderCall, renderResult
-├── events.ts         # Event handlers: session_start, agent_end, before_agent_start, input
+├── events.ts         # Event handlers: session_start, session_tree, session_shutdown, before_agent_start, agent_end, input, tool_result
 ├── config.ts         # Configuration loading from .pi/phased-tasks.json
 ├── formatting.ts     # Plain-text formatting for board display, summaries, and prompts
 ├── validation.ts     # Input validation, dependency cycle detection, snapshot type guards

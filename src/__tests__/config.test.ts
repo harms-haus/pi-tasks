@@ -83,6 +83,22 @@ describe("config", () => {
       expect(config).toEqual({ phaseCompletionPromptTemplate: template });
     });
 
+    it("logs warning for non-ENOENT errors", async () => {
+      const warnSpy = vi.spyOn(console, "warn");
+      const err = new Error("permission denied") as NodeJS.ErrnoException;
+      err.code = "EACCES";
+      mockReadFile.mockRejectedValue(err);
+
+      const config = await loadConfig();
+
+      expect(config).toEqual({});
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[pi-tasks] Failed to load config:",
+        expect.stringContaining("permission"),
+      );
+      warnSpy.mockRestore();
+    });
+
     it("caches the config on first load", async () => {
       mockReadFile.mockResolvedValue(JSON.stringify({ phaseCompletionPromptTemplate: "cached" }));
 

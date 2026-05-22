@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import type { vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { vi } from "vitest";
 import { createMockAPI, createMockContext, createMockTheme } from "./helpers/mocks";
 import {
   createWriteTasksTool,
@@ -9,8 +9,8 @@ import {
   createGetReadyTasksTool,
   createAdvanceTasksTool,
 } from "../tools";
-import { resetState, setAdvanceWarningPending } from "../state";
-import { resetConfig } from "../config";
+import { resetState } from "../state";
+import * as configModule from "../config";
 import type { TaskBoardSnapshot } from "../types";
 
 // ── Helpers ──
@@ -37,7 +37,7 @@ describe("write_tasks", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -305,7 +305,7 @@ describe("edit_tasks - data", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -473,7 +473,7 @@ describe("edit_tasks - blockers", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -623,6 +623,48 @@ describe("edit_tasks - blockers", () => {
     expect(r.details.snapshot.tasks[0].status).toBe("draft");
     expect(r.details.snapshot.tasks[1].status).toBe("draft");
   });
+
+  it("rejects while tasks are implementing", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const editTool = createEditTasksTool(api);
+
+    await callExecute(
+      writeTool,
+      {
+        mode: "replace",
+        phases: [
+          {
+            title: "Phase 1",
+            tasks: [
+              { title: "A", prompt: "P", profile: "c" },
+              { title: "B", prompt: "P", profile: "c" },
+            ],
+          },
+        ],
+      },
+      ctx,
+    );
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    // t-1.1 is implementing, t-1.2 is ready
+
+    const result = await callExecute(
+      editTool,
+      {
+        tasks: [{ id: "t-1.2", type: "blockers", data: { dependencies: [] } }],
+      },
+      ctx,
+    );
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBeDefined();
+    expect(r.content[0].text).toContain("implementing/reviewing");
+  });
 });
 
 // ═══════════════════════════════════════════
@@ -635,7 +677,7 @@ describe("advance_tasks tool", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -835,9 +877,7 @@ describe("advance_tasks tool", () => {
     await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
     // t-1.1 reviewing
 
-    // Simulate the state where the event handler would flag double-advance
-    setAdvanceWarningPending(true);
-
+    // Second consecutive advance triggers the warning (wasConsecutive = true)
     const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
     // t-1.1 done
 
@@ -848,6 +888,32 @@ describe("advance_tasks tool", () => {
     expect(r.details.error).toBeUndefined();
     expect(r.content[0].text).toContain("Review should not be skipped");
     expect(r.details.snapshot.tasks[0].status).toBe("done");
+  });
+
+  it("deduplicates IDs", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
+
+    await callExecute(
+      writeTool,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      ctx,
+    );
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    // t-1.1 is implementing
+
+    const result = await callExecute(advanceTool, { ids: ["t-1.1", "t-1.1"] }, ctx);
+
+    const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
+    expect(r.details.error).toBeUndefined();
+    // Should only advance once: implementing → reviewing (not done)
+    expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
   });
 
   it("renderCall shows task count", () => {
@@ -870,7 +936,7 @@ describe("edit_tasks - abandon", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -1036,7 +1102,7 @@ describe("edit_tasks - atomicity", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -1099,7 +1165,7 @@ describe("compile_tasks", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -1235,7 +1301,7 @@ describe("clear_tasks", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -1271,6 +1337,64 @@ describe("clear_tasks", () => {
     expect(r.content[0].text).toContain("Board cleared");
     expect(r.details.snapshot.tasks).toEqual([]);
     expect(r.details.snapshot.phases).toEqual([]);
+  });
+
+  it("rejects when tasks are implementing", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const clearTool = createClearTasksTool(api);
+
+    await callExecute(
+      writeTool,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      ctx,
+    );
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    // t-1.1 is implementing
+
+    const result = await callExecute(clearTool, {}, ctx);
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBeDefined();
+    expect(r.content[0].text).toContain("implementing or reviewing");
+  });
+
+  it("rejects when tasks are reviewing", async () => {
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
+    const clearTool = createClearTasksTool(api);
+
+    await callExecute(
+      writeTool,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      ctx,
+    );
+    await callExecute(compileTool, {}, ctx);
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 is reviewing
+
+    const result = await callExecute(clearTool, {}, ctx);
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBeDefined();
+    expect(r.content[0].text).toContain("implementing or reviewing");
   });
 
   it("clears board and allows fresh task ids", async () => {
@@ -1324,7 +1448,7 @@ describe("get_ready_tasks", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     const mockApi = createMockAPI();
     api = mockApi.api;
     ctx = createMockContext();
@@ -1593,7 +1717,7 @@ describe("tool render functions", () => {
 
   beforeEach(() => {
     resetState();
-    resetConfig();
+    configModule.resetConfig();
     api = createMockAPI().api;
     theme = createMockTheme();
   });
@@ -1684,5 +1808,72 @@ describe("tool render functions", () => {
       theme,
     );
     expect(rendered.toString()).toContain("Some error");
+  });
+});
+
+// ═══════════════════════════════════════════
+// 10. Phase completion prompt
+// ═══════════════════════════════════════════
+
+describe("phase completion prompt", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let ctx: ReturnType<typeof createMockContext>;
+
+  beforeEach(() => {
+    resetState();
+    configModule.resetConfig();
+    const mockApi = createMockAPI();
+    api = mockApi.api;
+    ctx = createMockContext();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("sets pendingPhasePrompt when a phase completes after advance", async () => {
+    vi.spyOn(configModule, "loadConfig").mockResolvedValue({
+      phaseCompletionPromptTemplate: "Phase {phase} complete!",
+    });
+
+    const writeTool = createWriteTasksTool(api);
+    const compileTool = createCompileTasksTool(api);
+    const getReadyTool = createGetReadyTasksTool(api);
+    const advanceTool = createAdvanceTasksTool(api);
+
+    // Write 2 phases with 1 task each
+    await callExecute(
+      writeTool,
+      {
+        mode: "replace",
+        phases: [
+          { title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] },
+          { title: "Phase 2", tasks: [{ title: "B", prompt: "P", profile: "c" }] },
+        ],
+      },
+      ctx,
+    );
+
+    await callExecute(compileTool, {}, ctx);
+    // Phase 1 task is ready, Phase 2 task is configured (gated)
+
+    await callExecute(getReadyTool, { count: 1 }, ctx);
+    // t-1.1 is implementing
+
+    await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 is reviewing
+
+    const result = await callExecute(advanceTool, { ids: ["t-1.1"] }, ctx);
+    // t-1.1 is done — Phase 1 should complete
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { snapshot: TaskBoardSnapshot; error?: string };
+    };
+
+    expect(r.details.error).toBeUndefined();
+    expect(r.details.snapshot.pendingPhasePrompt).toBeDefined();
+    expect(r.details.snapshot.pendingPhasePrompt?.phase).toBe(1);
+    expect(r.details.snapshot.pendingPhasePrompt?.message).toContain("Phase 1 complete!");
   });
 });
