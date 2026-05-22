@@ -401,9 +401,7 @@ describe("isValidSnapshot - hardened validation", () => {
   it("rejects snapshot with task having invalid status", () => {
     const snap = {
       version: 1,
-      tasks: [
-        { id: "t-1", title: "Test", status: "unknown", phase: 1, dependencies: [] },
-      ],
+      tasks: [{ id: "t-1", title: "Test", status: "unknown", phase: 1, dependencies: [] }],
       phases: [],
     };
     expect(isValidSnapshot(snap)).toBe(false);
@@ -412,9 +410,7 @@ describe("isValidSnapshot - hardened validation", () => {
   it("rejects snapshot with task having non-string dependency elements", () => {
     const snap = {
       version: 1,
-      tasks: [
-        { id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: [123] },
-      ],
+      tasks: [{ id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: [123] }],
       phases: [],
     };
     expect(isValidSnapshot(snap)).toBe(false);
@@ -423,9 +419,7 @@ describe("isValidSnapshot - hardened validation", () => {
   it("rejects snapshot with task having non-array dependencies", () => {
     const snap = {
       version: 1,
-      tasks: [
-        { id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: "bad" },
-      ],
+      tasks: [{ id: "t-1", title: "Test", status: "draft", phase: 1, dependencies: "bad" }],
       phases: [],
     };
     expect(isValidSnapshot(snap)).toBe(false);

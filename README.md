@@ -119,17 +119,17 @@ implementing → reviewing → done using advance_tasks.
 
 Add tasks to the board grouped by phase. Each task is created in `draft` status.
 
-| Parameter | Type     | Required | Description                                                                                     |
-| --------- | -------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `mode`    | `string` | Yes      | `"replace"` clears the board before writing; `"append"` adds phases to an existing board       |
-| `phases`  | `array`  | Yes      | Array of phase objects (min 1). Phase numbers are auto-assigned from array position (1, 2, …)  |
+| Parameter | Type     | Required | Description                                                                                   |
+| --------- | -------- | -------- | --------------------------------------------------------------------------------------------- |
+| `mode`    | `string` | Yes      | `"replace"` clears the board before writing; `"append"` adds phases to an existing board      |
+| `phases`  | `array`  | Yes      | Array of phase objects (min 1). Phase numbers are auto-assigned from array position (1, 2, …) |
 
 Each phase object:
 
-| Field   | Type     | Required | Description                             |
-| ------- | -------- | -------- | --------------------------------------- |
-| `title` | `string` | Yes      | Short phase title (e.g. "Setup")        |
-| `tasks` | `array`  | Yes      | Tasks in this phase (at least 1)        |
+| Field   | Type     | Required | Description                      |
+| ------- | -------- | -------- | -------------------------------- |
+| `title` | `string` | Yes      | Short phase title (e.g. "Setup") |
+| `tasks` | `array`  | Yes      | Tasks in this phase (at least 1) |
 
 Each task object:
 
@@ -151,8 +151,8 @@ Each task object:
 
 Batch-edit tasks on the board. Supports three edit types. Edits are atomic — if any validation fails, none are applied.
 
-| Parameter | Type    | Required | Description                         |
-| --------- | ------- | -------- | ----------------------------------- |
+| Parameter | Type    | Required | Description                                       |
+| --------- | ------- | -------- | ------------------------------------------------- |
 | `tasks`   | `array` | Yes      | Array of edit objects (mixed types, max 50 items) |
 
 **Type: `data`** — modify task fields
@@ -221,8 +221,8 @@ Error messages distinguish between:
 
 Advance tasks through their lifecycle: `implementing` → `reviewing` → `done`. Each call advances each task by one step.
 
-| Parameter | Type       | Required | Description                  |
-| --------- | ---------- | -------- | ---------------------------- |
+| Parameter | Type       | Required | Description                                 |
+| --------- | ---------- | -------- | ------------------------------------------- |
 | `ids`     | `string[]` | Yes      | Array of task IDs to advance (max 50 items) |
 
 Tasks must be in `implementing` or `reviewing` status. Duplicate IDs in the array are deduplicated.

@@ -160,11 +160,7 @@ describe("full lifecycle integration", () => {
     expect(findTask(afterClaim1, "t-1.2").status).toBe("implementing");
 
     // ── Step 5: advance_tasks A and B to reviewing ──
-    const advanceResult1 = await callExecute(
-      advanceTool,
-      { ids: ["t-1.1", "t-1.2"] },
-      ctx,
-    );
+    const advanceResult1 = await callExecute(advanceTool, { ids: ["t-1.1", "t-1.2"] }, ctx);
 
     expect(advanceResult1.details.error).toBeUndefined();
     const afterReview1 = snapshot(advanceResult1);
@@ -172,11 +168,7 @@ describe("full lifecycle integration", () => {
     expect(findTask(afterReview1, "t-1.2").status).toBe("reviewing");
 
     // ── Step 6: advance_tasks A and B to done ──
-    const advanceResult2 = await callExecute(
-      advanceTool,
-      { ids: ["t-1.1", "t-1.2"] },
-      ctx,
-    );
+    const advanceResult2 = await callExecute(advanceTool, { ids: ["t-1.1", "t-1.2"] }, ctx);
 
     expect(advanceResult2.details.error).toBeUndefined();
     const afterDone1 = snapshot(advanceResult2);
@@ -218,11 +210,7 @@ describe("full lifecycle integration", () => {
     // ── Step 10: advance C and D through reviewing → done ──
     await callExecute(advanceTool, { ids: ["t-2.1", "t-2.2"] }, ctx); // → reviewing
 
-    const advanceResult4 = await callExecute(
-      advanceTool,
-      { ids: ["t-2.1", "t-2.2"] },
-      ctx,
-    ); // → done
+    const advanceResult4 = await callExecute(advanceTool, { ids: ["t-2.1", "t-2.2"] }, ctx); // → done
 
     expect(advanceResult4.details.error).toBeUndefined();
     const afterDone2 = snapshot(advanceResult4);
@@ -258,11 +246,7 @@ describe("full lifecycle integration", () => {
     // ── Step 14: advance both through reviewing → done ──
     await callExecute(advanceTool, { ids: ["t-3.1", "t-3.2"] }, ctx); // → reviewing
 
-    const advanceResult6 = await callExecute(
-      advanceTool,
-      { ids: ["t-3.1", "t-3.2"] },
-      ctx,
-    ); // → done
+    const advanceResult6 = await callExecute(advanceTool, { ids: ["t-3.1", "t-3.2"] }, ctx); // → done
 
     expect(advanceResult6.details.error).toBeUndefined();
     const afterDone3 = snapshot(advanceResult6);

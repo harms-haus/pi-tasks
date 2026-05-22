@@ -49,7 +49,6 @@ export function setLastToolWasAdvance(value: boolean): void {
   lastToolWasAdvance = value;
 }
 
-
 /** Resets all mutable state. For testing only. */
 export function resetState(): void {
   board = createEmptyBoard();
@@ -110,9 +109,7 @@ export function updateUI(ctx: ExtensionContext, snapshot: Readonly<TaskBoardSnap
   const total = snapshot.tasks.length;
 
   const activePhase = snapshot.phases.find((p) => p.status === "active");
-  const label = activePhase
-    ? phaseLabel(snapshot, activePhase.phase)
-    : "No active phase";
+  const label = activePhase ? phaseLabel(snapshot, activePhase.phase) : "No active phase";
 
   ctx.ui.setStatus("til-done", `${done}/${total} - ${label}`);
 

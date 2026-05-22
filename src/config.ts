@@ -27,8 +27,11 @@ export async function loadConfig(): Promise<PhasedTasksConfig> {
           }
         : {};
   } catch (err) {
-    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      console.warn('[pi-tasks] Failed to load config:', err instanceof Error ? err.message : String(err));
+    if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.warn(
+        "[pi-tasks] Failed to load config:",
+        err instanceof Error ? err.message : String(err),
+      );
     }
     cachedConfig = {};
   }

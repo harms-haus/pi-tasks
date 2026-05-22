@@ -19,16 +19,12 @@ import { NOW, makeCompiledBoard, makeBoardWithStatuses } from "./helpers/engine-
 
 describe("phaseLabel", () => {
   it("returns label with title when phase record has a title", () => {
-    const board = makeCompiledBoard([
-      { title: "A", prompt: "P", profile: "c", phase: 1 },
-    ]);
+    const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     expect(phaseLabel(board, 1)).toBe("Phase 1: Phase 1");
   });
 
   it("returns plain phase number when no matching phase record", () => {
-    const board = makeCompiledBoard([
-      { title: "A", prompt: "P", profile: "c", phase: 1 },
-    ]);
+    const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     expect(phaseLabel(board, 99)).toBe("Phase 99");
   });
 
@@ -273,9 +269,7 @@ describe("formatHiddenContext", () => {
   });
 
   it("includes Active Phase: line", () => {
-    const board = makeCompiledBoard([
-      { title: "A", prompt: "P", profile: "c", phase: 1 },
-    ]);
+    const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     const result = formatHiddenContext(board);
     expect(result).toContain("Active Phase: Phase 1: Phase 1");
   });
@@ -287,9 +281,7 @@ describe("formatHiddenContext", () => {
   });
 
   it("includes Status: line with counts", () => {
-    const board = makeCompiledBoard([
-      { title: "A", prompt: "P", profile: "c", phase: 1 },
-    ]);
+    const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     const result = formatHiddenContext(board);
     expect(result).toContain("Status:");
     expect(result).toContain("1 ready");
@@ -313,9 +305,7 @@ describe("formatHiddenContext", () => {
   });
 
   it("shows 'Currently claimed:' section for reviewing tasks", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Review Task", phase: 1, status: "reviewing" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Review Task", phase: 1, status: "reviewing" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatHiddenContext(board);
@@ -324,9 +314,7 @@ describe("formatHiddenContext", () => {
   });
 
   it("shows 'Remaining tasks:' section for non-terminal tasks", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Ready Task", phase: 1, status: "ready" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Ready Task", phase: 1, status: "ready" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatHiddenContext(board);
@@ -335,9 +323,7 @@ describe("formatHiddenContext", () => {
   });
 
   it("does not include terminal tasks in Remaining tasks", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Done", phase: 1, status: "done" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Done", phase: 1, status: "done" }]);
     board.phases = [{ phase: 1, status: "completed" }];
 
     const result = formatHiddenContext(board);
@@ -375,7 +361,10 @@ describe("formatHiddenContext", () => {
     const recentlySection = result.slice(result.indexOf("Recently completed:"));
     const completedLines = recentlySection
       .split("\n")
-      .filter((l) => l.trim().startsWith(STATUS_ICONS.done) || l.trim().startsWith(STATUS_ICONS.abandoned));
+      .filter(
+        (l) =>
+          l.trim().startsWith(STATUS_ICONS.done) || l.trim().startsWith(STATUS_ICONS.abandoned),
+      );
     expect(completedLines).toHaveLength(10);
   });
 
@@ -404,9 +393,7 @@ describe("formatHiddenContext", () => {
 
 describe("formatContinuePrompt", () => {
   it("shows 'Ready to claim' when ready tasks exist", () => {
-    const board = makeBoardWithStatuses([
-      { title: "A", phase: 1, status: "ready" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "A", phase: 1, status: "ready" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatContinuePrompt(board);
@@ -415,9 +402,7 @@ describe("formatContinuePrompt", () => {
   });
 
   it("shows 'Currently claimed' when implementing tasks exist", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Active", phase: 1, status: "implementing" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Active", phase: 1, status: "implementing" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatContinuePrompt(board);
@@ -426,9 +411,7 @@ describe("formatContinuePrompt", () => {
   });
 
   it("shows 'Currently claimed' when reviewing tasks exist", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Under Review", phase: 1, status: "reviewing" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Under Review", phase: 1, status: "reviewing" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatContinuePrompt(board);
@@ -437,9 +420,7 @@ describe("formatContinuePrompt", () => {
   });
 
   it("shows blocked message for deadlock (non-terminal, not ready/active)", () => {
-    const board = makeBoardWithStatuses([
-      { title: "Blocked", phase: 1, status: "configured" },
-    ]);
+    const board = makeBoardWithStatuses([{ title: "Blocked", phase: 1, status: "configured" }]);
     board.phases = [{ phase: 1, status: "active" }];
 
     const result = formatContinuePrompt(board);
@@ -507,8 +488,6 @@ describe("formatAllDoneMessage", () => {
     const lastPhaseNum = board.phases[board.phases.length - 1].phase;
     const lastPhaseTitle = board.phases[board.phases.length - 1].title;
     const result = formatAllDoneMessage(board);
-    expect(result).toBe(
-      `All tasks resolved. Phase ${lastPhaseNum}: ${lastPhaseTitle} complete.`,
-    );
+    expect(result).toBe(`All tasks resolved. Phase ${lastPhaseNum}: ${lastPhaseTitle} complete.`);
   });
 });

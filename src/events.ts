@@ -66,8 +66,14 @@ function trySendAutoContinue(pi: ExtensionAPI, prompt: string): void {
 /** Schedule auto-continue with countdown UI or timeout fallback. */
 function scheduleAutoContinue(pi: ExtensionAPI, ctx: ExtensionContext, prompt: string): void {
   // Always clear both timer handles regardless of UI mode
-  if (activeCountdown !== null) { clearInterval(activeCountdown); activeCountdown = null; }
-  if (activeTimeout !== null) { clearTimeout(activeTimeout); activeTimeout = null; }
+  if (activeCountdown !== null) {
+    clearInterval(activeCountdown);
+    activeCountdown = null;
+  }
+  if (activeTimeout !== null) {
+    clearTimeout(activeTimeout);
+    activeTimeout = null;
+  }
 
   if (ctx.hasUI) {
     let remaining = 3;
