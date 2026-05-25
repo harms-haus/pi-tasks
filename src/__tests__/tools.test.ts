@@ -1902,7 +1902,11 @@ describe("renderColoredBoardResult branches", () => {
         snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     const text = rendered.toString();
     expect(text).toContain("**─── Phase 1: Setup ───**"); // bold
     expect(text).toContain("[accent]"); // fg accent
@@ -1920,7 +1924,11 @@ describe("renderColoredBoardResult branches", () => {
         snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     const text = rendered.toString();
     expect(text).toContain("[muted]t-1.1: ");
     expect(text).toContain("[muted]t-1.2: ");
@@ -1936,7 +1944,11 @@ describe("renderColoredBoardResult branches", () => {
         snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     const text = rendered.toString();
     expect(text).toContain("[muted]t-1.1");
     expect(text).toContain("[muted]t-1.2");
@@ -1952,7 +1964,11 @@ describe("renderColoredBoardResult branches", () => {
         snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     const text = rendered.toString();
     // Phase header: bold + accent
     expect(text).toContain("[accent]");
@@ -1972,7 +1988,11 @@ describe("renderColoredBoardResult branches", () => {
       content: [{ type: "text" as const, text: "Just some text" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("Just some text");
   });
 
@@ -1984,7 +2004,11 @@ describe("renderColoredBoardResult branches", () => {
         snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
       },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe(""); // text falls back to ""
   });
 });
@@ -2015,7 +2039,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: boardText }],
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[accent]");
   });
 
@@ -2025,7 +2053,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Error msg" }],
       details: { snapshot, error: "Something failed" },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[error]Something failed");
   });
 
@@ -2035,7 +2067,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Plain" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("Plain");
   });
 
@@ -2047,7 +2083,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: boardText }],
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[accent]");
   });
 
@@ -2057,7 +2097,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Err" }],
       details: { snapshot, error: "Compile error" },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[error]Compile error");
   });
 
@@ -2067,7 +2111,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "No details" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("No details");
   });
 
@@ -2079,7 +2127,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Board cleared." }],
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[text]Board cleared.");
   });
 
@@ -2089,7 +2141,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Err" }],
       details: { snapshot, error: "Cannot clear" },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[error]Cannot clear");
   });
 
@@ -2099,7 +2155,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "No details" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("No details");
   });
 
@@ -2111,7 +2171,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: boardText }],
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[accent]");
   });
 
@@ -2121,7 +2185,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Err" }],
       details: { snapshot, error: "No tasks" },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[error]No tasks");
   });
 
@@ -2131,7 +2199,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "No details" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("No details");
   });
 
@@ -2143,7 +2215,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: boardText }],
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[accent]");
   });
 
@@ -2153,7 +2229,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "Err" }],
       details: { snapshot, error: "Invalid status" },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toContain("[error]Invalid status");
   });
 
@@ -2163,7 +2243,11 @@ describe("renderResult per tool", () => {
       content: [{ type: "text" as const, text: "No details" }],
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("No details");
   });
 
@@ -2175,7 +2259,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: { snapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 
@@ -2185,7 +2273,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 
@@ -2195,7 +2287,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 
@@ -2205,7 +2301,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 
@@ -2215,7 +2315,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 
@@ -2225,7 +2329,11 @@ describe("renderResult per tool", () => {
       content: [] as Array<{ type: string; text: string }>,
       details: undefined as unknown as { snapshot: TaskBoardSnapshot },
     };
-    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const rendered = (tool as any).renderResult(
+      result,
+      { expanded: false, isPartial: false },
+      theme,
+    );
     expect(rendered.toString()).toBe("");
   });
 });
