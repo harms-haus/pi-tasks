@@ -76,18 +76,16 @@ export function writeTasks(
     );
   }
 
-  for (let i = 0; i < input.phases.length; i++) {
-    const inputPhase = input.phases[i];
+  for (const [i, inputPhase] of input.phases.entries()) {
     const phaseNum = startPhase + i;
 
     if (!isNonEmptyString(inputPhase.title.trim())) {
       throw new Error(`Phase ${i + 1}: title must be a non-empty string`);
     }
 
-    for (let j = 0; j < inputPhase.tasks.length; j++) {
-      validateTaskInput(inputPhase.tasks[j], j, phaseNum);
+    for (const [j, taskInput] of inputPhase.tasks.entries()) {
+      validateTaskInput(taskInput, j, phaseNum);
 
-      const taskInput = inputPhase.tasks[j];
       const phaseCount = result.tasks.filter((t) => t.phase === phaseNum).length;
       const id = `t-${phaseNum}.${phaseCount + 1}`;
       result.tasks.push({
@@ -142,6 +140,7 @@ function recomputePhasesAndReadiness(
   const nonTerminalPhases = new Set(nonTerminalTasks.map((t) => t.phase));
   const sortedNonTerminalPhases = [...nonTerminalPhases].sort((a, b) => a - b);
   const activePhase = sortedNonTerminalPhases[0];
+  if (activePhase === undefined) return board;
 
   const oldPhaseMap = new Map(oldBoard.phases.map((p) => [p.phase, p]));
   board.phases = buildPhasesArray(allPhaseNumbers, activePhase, oldPhaseMap, now);

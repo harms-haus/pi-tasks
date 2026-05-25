@@ -45,6 +45,7 @@ export default tseslint.config(
         "error",
         { allowNumber: true, allowBoolean: true },
       ],
+      "@typescript-eslint/require-await": "warn",
     },
   },
   {
@@ -67,6 +68,7 @@ export default tseslint.config(
       "max-lines-per-function": "off",
       complexity: "off",
       "max-depth": "off",
+      "@typescript-eslint/require-await": "off",
     },
   },
 );

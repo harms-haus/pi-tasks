@@ -43,10 +43,10 @@ describe("writeTasks", () => {
     );
 
     expect(result.tasks).toHaveLength(2);
-    expect(result.tasks[0].id).toBe("t-1.1");
-    expect(result.tasks[1].id).toBe("t-1.2");
-    expect(result.tasks[0].status).toBe("draft");
-    expect(result.tasks[1].status).toBe("draft");
+    expect(result.tasks[0]!.id).toBe("t-1.1");
+    expect(result.tasks[1]!.id).toBe("t-1.2");
+    expect(result.tasks[0]!.status).toBe("draft");
+    expect(result.tasks[1]!.status).toBe("draft");
   });
 
   it("sets createdAt and updatedAt to the now parameter", () => {
@@ -65,8 +65,8 @@ describe("writeTasks", () => {
       NOW,
     );
 
-    expect(result.tasks[0].createdAt).toBe(NOW);
-    expect(result.tasks[0].updatedAt).toBe(NOW);
+    expect(result.tasks[0]!.createdAt).toBe(NOW);
+    expect(result.tasks[0]!.updatedAt).toBe(NOW);
   });
 
   it("initializes dependencies to an empty array", () => {
@@ -85,7 +85,7 @@ describe("writeTasks", () => {
       NOW,
     );
 
-    expect(result.tasks[0].dependencies).toEqual([]);
+    expect(result.tasks[0]!.dependencies).toEqual([]);
   });
 
   it("assigns sequential phase numbers across input phases", () => {
@@ -112,12 +112,12 @@ describe("writeTasks", () => {
       NOW,
     );
 
-    expect(result.tasks[0].id).toBe("t-1.1");
-    expect(result.tasks[1].id).toBe("t-2.1");
-    expect(result.tasks[2].id).toBe("t-3.1");
-    expect(result.tasks[0].phase).toBe(1);
-    expect(result.tasks[1].phase).toBe(2);
-    expect(result.tasks[2].phase).toBe(3);
+    expect(result.tasks[0]!.id).toBe("t-1.1");
+    expect(result.tasks[1]!.id).toBe("t-2.1");
+    expect(result.tasks[2]!.id).toBe("t-3.1");
+    expect(result.tasks[0]!.phase).toBe(1);
+    expect(result.tasks[1]!.phase).toBe(2);
+    expect(result.tasks[2]!.phase).toBe(3);
   });
 
   // ── Replace mode ──
@@ -156,8 +156,8 @@ describe("writeTasks", () => {
     );
 
     expect(result.tasks).toHaveLength(1);
-    expect(result.tasks[0].title).toBe("New Task");
-    expect(result.tasks[0].id).toBe("t-1.1");
+    expect(result.tasks[0]!.title).toBe("New Task");
+    expect(result.tasks[0]!.id).toBe("t-1.1");
   });
 
   it("replace mode rejects when active tasks exist", () => {
@@ -212,10 +212,10 @@ describe("writeTasks", () => {
     );
 
     expect(result.tasks).toHaveLength(2);
-    expect(result.tasks[0].title).toBe("First");
-    expect(result.tasks[1].title).toBe("Second");
-    expect(result.tasks[1].id).toBe("t-2.1");
-    expect(result.tasks[1].phase).toBe(2);
+    expect(result.tasks[0]!.title).toBe("First");
+    expect(result.tasks[1]!.title).toBe("Second");
+    expect(result.tasks[1]!.id).toBe("t-2.1");
+    expect(result.tasks[1]!.phase).toBe(2);
   });
 
   it("append mode computes startPhase from existing tasks", () => {
@@ -251,10 +251,10 @@ describe("writeTasks", () => {
       NOW,
     );
 
-    expect(result.tasks[3].id).toBe("t-4.1");
-    expect(result.tasks[3].phase).toBe(4);
-    expect(result.tasks[4].id).toBe("t-4.2");
-    expect(result.tasks[4].phase).toBe(4);
+    expect(result.tasks[3]!.id).toBe("t-4.1");
+    expect(result.tasks[3]!.phase).toBe(4);
+    expect(result.tasks[4]!.id).toBe("t-4.2");
+    expect(result.tasks[4]!.phase).toBe(4);
   });
 
   it("append mode on empty board starts from phase 1", () => {
@@ -272,8 +272,8 @@ describe("writeTasks", () => {
       },
       NOW,
     );
-    expect(result.tasks[0].id).toBe("t-1.1");
-    expect(result.tasks[0].phase).toBe(1);
+    expect(result.tasks[0]!.id).toBe("t-1.1");
+    expect(result.tasks[0]!.phase).toBe(1);
   });
 
   // ── Phase records ──
@@ -510,9 +510,9 @@ describe("writeTasks", () => {
       },
       NOW,
     );
-    expect(result.tasks[0].title).toBe("Task A");
-    expect(result.tasks[0].prompt).toBe("Do A");
-    expect(result.tasks[0].profile).toBe("coder");
-    expect(result.phases[0].title).toBe("Setup Phase");
+    expect(result.tasks[0]!.title).toBe("Task A");
+    expect(result.tasks[0]!.prompt).toBe("Do A");
+    expect(result.tasks[0]!.profile).toBe("coder");
+    expect(result.phases[0]!.title).toBe("Setup Phase");
   });
 });

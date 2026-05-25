@@ -1,5 +1,5 @@
 {
-  "name": "pi-tasks",
+  "name": "@harms-haus/pi-tasks",
   "version": "0.1.0",
   "description": "pi-coding-agent extension: phased task workflow with dependency tracking and strict status gating",
   "keywords": [
@@ -11,6 +11,13 @@
     "extensions": [
       "./src/index.ts"
     ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harms-haus/pi-tasks.git"
   },
   "files": [
     "src/**/*.ts",
@@ -37,19 +44,19 @@
     "typebox": "*"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
-    "@vitest/coverage-v8": "^3.2.4",
-    "eslint": "^9.0.0",
+    "@vitest/coverage-v8": "^4.1.6",
+    "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^3.0.0"
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3",
+    "vitest": "^4.1.6"
   },
   "author": "harms-haus",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "license": "MIT"
 }

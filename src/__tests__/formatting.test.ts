@@ -375,8 +375,8 @@ describe("formatHiddenContext", () => {
     ]);
     board.phases = [{ phase: 1, status: "completed" }];
     // Override updatedAt to control ordering
-    board.tasks[0].updatedAt = "2025-01-01T00:00:00.000Z";
-    board.tasks[1].updatedAt = "2025-01-02T00:00:00.000Z";
+    board.tasks[0]!.updatedAt = "2025-01-01T00:00:00.000Z";
+    board.tasks[1]!.updatedAt = "2025-01-02T00:00:00.000Z";
 
     const result = formatHiddenContext(board);
     const recentlyIdx = result.indexOf("Recently completed:");
@@ -485,8 +485,8 @@ describe("formatAllDoneMessage", () => {
       { title: "C", prompt: "P", profile: "c", phase: 5 },
     ]);
     // makeCompiledBoard re-numbers phases as 1,2,3 with titles "Phase 1", "Phase 3", "Phase 5"
-    const lastPhaseNum = board.phases[board.phases.length - 1].phase;
-    const lastPhaseTitle = board.phases[board.phases.length - 1].title;
+    const lastPhaseNum = board.phases[board.phases.length - 1]!.phase;
+    const lastPhaseTitle = board.phases[board.phases.length - 1]!.title;
     const result = formatAllDoneMessage(board);
     expect(result).toBe(`All tasks resolved. Phase ${lastPhaseNum}: ${lastPhaseTitle} complete.`);
   });

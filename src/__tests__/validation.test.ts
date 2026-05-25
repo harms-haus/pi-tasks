@@ -508,8 +508,8 @@ describe("cloneBoard", () => {
       phases: [{ phase: 1, status: "active" }],
     });
     const clone = cloneBoard(board);
-    clone.tasks[0].title = "Modified";
-    expect(board.tasks[0].title).toBe("Test task");
+    clone.tasks[0]!.title = "Modified";
+    expect(board.tasks[0]!.title).toBe("Test task");
   });
 
   it("clones an empty board correctly", () => {

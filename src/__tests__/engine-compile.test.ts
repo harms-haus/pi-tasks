@@ -14,14 +14,14 @@ describe("compileBoard", () => {
     ]);
 
     // No deps → goes straight to ready
-    expect(board.tasks[0].status).toBe("ready");
+    expect(board.tasks[0]!.status).toBe("ready");
 
     // A task with unsatisfied deps stays configured
     const board2 = makeCompiledBoard([
       { title: "A", prompt: "P", profile: "c", phase: 1 },
       { title: "B", prompt: "P", profile: "c", phase: 1, dependencies: ["t-1.1"] },
     ]);
-    expect(board2.tasks[1].status).toBe("configured");
+    expect(board2.tasks[1]!.status).toBe("configured");
   });
 
   it("sets first phase with non-terminal tasks as active", () => {
@@ -53,7 +53,7 @@ describe("compileBoard", () => {
   it("marks configured task as ready when it has no dependencies", () => {
     const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
 
-    expect(board.tasks[0].status).toBe("ready");
+    expect(board.tasks[0]!.status).toBe("ready");
   });
 
   it("leaves configured tasks as configured when deps are not done", () => {
@@ -63,8 +63,8 @@ describe("compileBoard", () => {
     ]);
 
     // A has no deps → ready. B depends on A which is not done → configured
-    expect(board.tasks[0].status).toBe("ready");
-    expect(board.tasks[1].status).toBe("configured");
+    expect(board.tasks[0]!.status).toBe("ready");
+    expect(board.tasks[1]!.status).toBe("configured");
   });
 
   it("rejects empty board", () => {
@@ -144,8 +144,8 @@ describe("compileBoard", () => {
       { title: "B", prompt: "P", profile: "c", phase: 2, dependencies: ["t-1.1"] },
     ]);
 
-    expect(board.tasks[0].status).toBe("ready");
-    expect(board.tasks[1].status).toBe("configured"); // phase 2 is pending, not active
+    expect(board.tasks[0]!.status).toBe("ready");
+    expect(board.tasks[1]!.status).toBe("configured"); // phase 2 is pending, not active
   });
 
   it("does not mutate the input board", () => {
@@ -172,8 +172,8 @@ describe("compileBoard", () => {
 
     expect(board.phases).toHaveLength(3);
     expect(board.phases.map((p) => p.phase)).toEqual([1, 2, 3]);
-    expect(board.phases[0].status).toBe("active");
-    expect(board.phases[1].status).toBe("pending");
-    expect(board.phases[2].status).toBe("pending");
+    expect(board.phases[0]!.status).toBe("active");
+    expect(board.phases[1]!.status).toBe("pending");
+    expect(board.phases[2]!.status).toBe("pending");
   });
 });

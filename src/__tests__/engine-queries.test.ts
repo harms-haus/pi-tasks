@@ -23,9 +23,9 @@ describe("claimReadyTasks", () => {
 
     const result = claimReadyTasks(board, 2, NOW);
     expect(result.claimed).toHaveLength(2);
-    expect(result.board.tasks[0].status).toBe("implementing");
-    expect(result.board.tasks[1].status).toBe("implementing");
-    expect(result.board.tasks[2].status).toBe("ready"); // not claimed
+    expect(result.board.tasks[0]!.status).toBe("implementing");
+    expect(result.board.tasks[1]!.status).toBe("implementing");
+    expect(result.board.tasks[2]!.status).toBe("ready"); // not claimed
   });
 
   it("orders by phase ascending, then creation order", () => {
@@ -38,21 +38,21 @@ describe("claimReadyTasks", () => {
     // Phase 1 is active. Phase 2 is pending.
     // Only phase 1 tasks are ready: B and C.
     // Phase 2 task A stays configured.
-    expect(board.tasks[0].status).toBe("ready"); // B, phase 1, active
-    expect(board.tasks[1].status).toBe("ready"); // C, phase 1, active
-    expect(board.tasks[2].status).toBe("configured"); // A, phase 2, pending
+    expect(board.tasks[0]!.status).toBe("ready"); // B, phase 1, active
+    expect(board.tasks[1]!.status).toBe("ready"); // C, phase 1, active
+    expect(board.tasks[2]!.status).toBe("configured"); // A, phase 2, pending
 
     const result = claimReadyTasks(board, 5, NOW);
     expect(result.claimed).toHaveLength(2);
-    expect(result.claimed[0].id).toBe("t-1.1"); // phase 1, created first
-    expect(result.claimed[1].id).toBe("t-1.2"); // phase 1, created second
+    expect(result.claimed[0]!.id).toBe("t-1.1"); // phase 1, created first
+    expect(result.claimed[1]!.id).toBe("t-1.2"); // phase 1, created second
   });
 
   it("moves claimed tasks to implementing", () => {
     const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     const result = claimReadyTasks(board, 1, NOW);
-    expect(result.claimed[0].status).toBe("implementing");
-    expect(result.board.tasks[0].status).toBe("implementing");
+    expect(result.claimed[0]!.status).toBe("implementing");
+    expect(result.board.tasks[0]!.status).toBe("implementing");
   });
 
   it("rejects if count < 1", () => {
@@ -68,7 +68,7 @@ describe("claimReadyTasks", () => {
     ]);
     board = claimReadyTasks(board, 1, NOW).board;
     // t-1.1 is implementing, t-1.2 is ready
-    expect(board.tasks[0].status).toBe("implementing");
+    expect(board.tasks[0]!.status).toBe("implementing");
 
     expect(() => claimReadyTasks(board, 1, NOW)).toThrow(
       /Cannot claim tasks while tasks are implementing or reviewing/,
@@ -96,8 +96,8 @@ describe("claimReadyTasks", () => {
     const board = makeCompiledBoard([{ title: "A", prompt: "P", profile: "c", phase: 1 }]);
     const later = "2025-06-01T00:00:00.000Z";
     const result = claimReadyTasks(board, 1, later);
-    expect(result.claimed[0].updatedAt).toBe(later);
-    expect(result.board.tasks[0].updatedAt).toBe(later);
+    expect(result.claimed[0]!.updatedAt).toBe(later);
+    expect(result.board.tasks[0]!.updatedAt).toBe(later);
   });
 });
 
@@ -175,8 +175,8 @@ describe("Phase gating", () => {
     ]);
 
     // Phase 1 is active, A is ready. Phase 2 is pending, B is configured.
-    expect(board.tasks[0].status).toBe("ready");
-    expect(board.tasks[1].status).toBe("configured");
+    expect(board.tasks[0]!.status).toBe("ready");
+    expect(board.tasks[1]!.status).toBe("configured");
     expect(board.phases.find((p) => p.phase === 1)?.status).toBe("active");
     expect(board.phases.find((p) => p.phase === 2)?.status).toBe("pending");
   });
@@ -193,8 +193,8 @@ describe("Phase gating", () => {
     board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW); // → done
 
     // Phase 1 completed, phase 2 activated. B should be ready.
-    expect(board.tasks[0].status).toBe("done");
-    expect(board.tasks[1].status).toBe("ready");
+    expect(board.tasks[0]!.status).toBe("done");
+    expect(board.tasks[1]!.status).toBe("ready");
     expect(board.phases.find((p) => p.phase === 1)?.status).toBe("completed");
     expect(board.phases.find((p) => p.phase === 2)?.status).toBe("active");
   });
@@ -209,8 +209,8 @@ describe("Phase gating", () => {
     board = applyEdits(board, [{ id: "t-1.1", type: "abandon" }], NOW);
 
     // Phase 1 completed (all terminal), phase 2 activated
-    expect(board.tasks[0].status).toBe("abandoned");
-    expect(board.tasks[1].status).toBe("ready");
+    expect(board.tasks[0]!.status).toBe("abandoned");
+    expect(board.tasks[1]!.status).toBe("ready");
     expect(board.phases.find((p) => p.phase === 1)?.status).toBe("completed");
     expect(board.phases.find((p) => p.phase === 2)?.status).toBe("active");
   });
@@ -231,7 +231,7 @@ describe("Phase gating", () => {
     board = applyEdits(board, [{ id: "t-1.2", type: "abandon" }], NOW);
 
     // Phase 1 all terminal, phase 2 active, C ready
-    expect(board.tasks[2].status).toBe("ready");
+    expect(board.tasks[2]!.status).toBe("ready");
     expect(board.phases.find((p) => p.phase === 1)?.status).toBe("completed");
     expect(board.phases.find((p) => p.phase === 2)?.status).toBe("active");
   });
@@ -251,14 +251,14 @@ describe("Phase gating", () => {
     board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
     board = applyEdits(board, [{ id: "t-1.1", type: "advance" }], NOW);
     expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(2);
-    expect(board.tasks[1].status).toBe("ready");
+    expect(board.tasks[1]!.status).toBe("ready");
 
     // Complete phase 2
     board = claimReadyTasks(board, 1, NOW).board;
     board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], NOW);
     board = applyEdits(board, [{ id: "t-2.1", type: "advance" }], NOW);
     expect(board.phases.find((p) => p.status === "active")?.phase ?? null).toBe(3);
-    expect(board.tasks[2].status).toBe("ready");
+    expect(board.tasks[2]!.status).toBe("ready");
 
     // Complete phase 3
     board = claimReadyTasks(board, 1, NOW).board;
@@ -307,8 +307,8 @@ describe("Phase gating", () => {
 
     // A is ready (phase 1 active, no deps). B is configured (phase 2 pending).
     // B depends on A, but even if A were done, B wouldn't be ready because phase 2 isn't active.
-    expect(board.tasks[0].status).toBe("ready");
-    expect(board.tasks[1].status).toBe("configured");
+    expect(board.tasks[0]!.status).toBe("ready");
+    expect(board.tasks[1]!.status).toBe("configured");
   });
 });
 

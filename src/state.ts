@@ -68,6 +68,7 @@ export function reconstructState(ctx: ExtensionContext): TaskBoardSnapshot {
 
   for (let i = branch.length - 1; i >= 0; i--) {
     const entry = branch[i];
+    if (!entry) continue;
     if (entry.type !== "custom") continue;
     if ((entry as { customType?: string }).customType !== CUSTOM_SNAPSHOT_TYPE) continue;
     const data = (entry as { data?: unknown }).data;

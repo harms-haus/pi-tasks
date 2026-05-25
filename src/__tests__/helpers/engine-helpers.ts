@@ -8,7 +8,7 @@ export const NOW = "2025-01-01T00:00:00.000Z";
 // ── Shared helpers ──
 
 function taskIdForIndex(board: TaskBoardSnapshot, index: number): string {
-  return board.tasks[index].id;
+  return board.tasks[index]!.id;
 }
 
 /**
@@ -82,7 +82,7 @@ export function makeBoardWithStatuses(
 ): TaskBoardSnapshot {
   const board = createEmptyBoard();
   for (let i = 0; i < tasks.length; i++) {
-    const t = tasks[i];
+    const t = tasks[i]!;
     const phaseCount = board.tasks.filter((existing) => existing.phase === t.phase).length;
     board.tasks.push({
       id: `t-${t.phase}.${phaseCount + 1}`,

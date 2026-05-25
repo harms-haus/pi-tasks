@@ -97,12 +97,12 @@ describe("full lifecycle integration", () => {
     const afterWrite = snapshot(writeResult);
     expect(afterWrite.tasks).toHaveLength(6);
     // Verify IDs
-    expect(afterWrite.tasks[0].id).toBe("t-1.1"); // Task A
-    expect(afterWrite.tasks[1].id).toBe("t-1.2"); // Task B
-    expect(afterWrite.tasks[2].id).toBe("t-2.1"); // Task C
-    expect(afterWrite.tasks[3].id).toBe("t-2.2"); // Task D
-    expect(afterWrite.tasks[4].id).toBe("t-3.1"); // Task E
-    expect(afterWrite.tasks[5].id).toBe("t-3.2"); // Task F
+    expect(afterWrite.tasks[0]!.id).toBe("t-1.1"); // Task A
+    expect(afterWrite.tasks[1]!.id).toBe("t-1.2"); // Task B
+    expect(afterWrite.tasks[2]!.id).toBe("t-2.1"); // Task C
+    expect(afterWrite.tasks[3]!.id).toBe("t-2.2"); // Task D
+    expect(afterWrite.tasks[4]!.id).toBe("t-3.1"); // Task E
+    expect(afterWrite.tasks[5]!.id).toBe("t-3.2"); // Task F
     // All tasks should be draft
     for (const t of afterWrite.tasks) {
       expect(t.status).toBe("draft");

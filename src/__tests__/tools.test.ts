@@ -61,13 +61,13 @@ describe("write_tasks", () => {
       content: Array<{ type: string; text: string }>;
       details: { snapshot: TaskBoardSnapshot; error?: string };
     };
-    expect(r.content[0].text).toContain("Added 2 task(s)");
-    expect(r.content[0].text).toContain("Task A");
-    expect(r.content[0].text).toContain("Task B");
+    expect(r.content[0]!.text).toContain("Added 2 task(s)");
+    expect(r.content[0]!.text).toContain("Task A");
+    expect(r.content[0]!.text).toContain("Task B");
     expect(r.details.snapshot.tasks).toHaveLength(2);
-    expect(r.details.snapshot.tasks[0].id).toBe("t-1.1");
-    expect(r.details.snapshot.tasks[0].status).toBe("draft");
-    expect(r.details.snapshot.tasks[1].id).toBe("t-2.1");
+    expect(r.details.snapshot.tasks[0]!.id).toBe("t-1.1");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("draft");
+    expect(r.details.snapshot.tasks[1]!.id).toBe("t-2.1");
     expect(r.details.error).toBeUndefined();
   });
 
@@ -97,9 +97,9 @@ describe("write_tasks", () => {
       details: { snapshot: TaskBoardSnapshot };
     };
     expect(r.details.snapshot.tasks).toHaveLength(2);
-    expect(r.details.snapshot.tasks[0].title).toBe("First");
-    expect(r.details.snapshot.tasks[1].title).toBe("Second");
-    expect(r.details.snapshot.tasks[1].id).toBe("t-2.1");
+    expect(r.details.snapshot.tasks[0]!.title).toBe("First");
+    expect(r.details.snapshot.tasks[1]!.title).toBe("Second");
+    expect(r.details.snapshot.tasks[1]!.id).toBe("t-2.1");
   });
 
   it("rejects empty title", async () => {
@@ -118,7 +118,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("title must be a non-empty string");
+    expect(r.content[0]!.text).toContain("title must be a non-empty string");
   });
 
   it("rejects empty prompt", async () => {
@@ -137,7 +137,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("prompt must be a non-empty string");
+    expect(r.content[0]!.text).toContain("prompt must be a non-empty string");
   });
 
   it("rejects empty profile", async () => {
@@ -156,7 +156,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("profile must be a non-empty string");
+    expect(r.content[0]!.text).toContain("profile must be a non-empty string");
   });
 
   it("rejects invalid phase (0)", async () => {
@@ -175,7 +175,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("title must be a non-empty string");
+    expect(r.content[0]!.text).toContain("title must be a non-empty string");
   });
 
   it("rejects invalid phase (negative)", async () => {
@@ -235,7 +235,7 @@ describe("write_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("would exceed maximum");
+    expect(r.content[0]!.text).toContain("would exceed maximum");
   });
 
   it("persists event and snapshot entries", async () => {
@@ -345,7 +345,7 @@ describe("edit_tasks - data", () => {
       details: { snapshot: TaskBoardSnapshot; error?: string };
     };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].title).toBe("New Title");
+    expect(r.details.snapshot.tasks[0]!.title).toBe("New Title");
   });
 
   it("resets non-terminal non-active tasks to draft", async () => {
@@ -382,8 +382,8 @@ describe("edit_tasks - data", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot } };
     // Both reset to draft (structural edit invalidates compilation)
-    expect(r.details.snapshot.tasks[0].status).toBe("draft");
-    expect(r.details.snapshot.tasks[1].status).toBe("draft");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("draft");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("draft");
   });
 
   it("rejects when tasks are implementing/reviewing", async () => {
@@ -425,7 +425,7 @@ describe("edit_tasks - data", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("implementing/reviewing");
+    expect(r.content[0]!.text).toContain("implementing/reviewing");
   });
 
   it("rejects unknown ids", async () => {
@@ -459,7 +459,7 @@ describe("edit_tasks - data", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("not found");
+    expect(r.content[0]!.text).toContain("not found");
   });
 });
 
@@ -512,7 +512,7 @@ describe("edit_tasks - blockers", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[1].dependencies).toEqual(["t-1.1"]);
+    expect(r.details.snapshot.tasks[1]!.dependencies).toEqual(["t-1.1"]);
   });
 
   it("rejects self-dependency", async () => {
@@ -548,7 +548,7 @@ describe("edit_tasks - blockers", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("cannot depend on itself");
+    expect(r.content[0]!.text).toContain("cannot depend on itself");
   });
 
   it("rejects references to nonexistent tasks", async () => {
@@ -584,7 +584,7 @@ describe("edit_tasks - blockers", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("non-existent dependencies");
+    expect(r.content[0]!.text).toContain("non-existent dependencies");
   });
 
   it("resets non-terminal non-active tasks to draft", async () => {
@@ -620,8 +620,8 @@ describe("edit_tasks - blockers", () => {
     );
 
     const r = result as { details: { snapshot: TaskBoardSnapshot } };
-    expect(r.details.snapshot.tasks[0].status).toBe("draft");
-    expect(r.details.snapshot.tasks[1].status).toBe("draft");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("draft");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("draft");
   });
 
   it("rejects while tasks are implementing", async () => {
@@ -663,7 +663,7 @@ describe("edit_tasks - blockers", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("implementing/reviewing");
+    expect(r.content[0]!.text).toContain("implementing/reviewing");
   });
 });
 
@@ -705,7 +705,7 @@ describe("advance_tasks tool", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("reviewing");
   });
 
   it("advances reviewing → done and recomputes readiness", async () => {
@@ -752,9 +752,9 @@ describe("advance_tasks tool", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("done");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("done");
     // B should now be ready since its dependency (A) is done
-    expect(r.details.snapshot.tasks[1].status).toBe("ready");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("ready");
   });
 
   it("advances batch of tasks", async () => {
@@ -787,8 +787,8 @@ describe("advance_tasks tool", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
-    expect(r.details.snapshot.tasks[1].status).toBe("reviewing");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("reviewing");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("reviewing");
   });
 
   it("errors on invalid status (draft)", async () => {
@@ -886,8 +886,8 @@ describe("advance_tasks tool", () => {
       details: { snapshot: TaskBoardSnapshot; error?: string };
     };
     expect(r.details.error).toBeUndefined();
-    expect(r.content[0].text).toContain("Review should not be skipped");
-    expect(r.details.snapshot.tasks[0].status).toBe("done");
+    expect(r.content[0]!.text).toContain("Review should not be skipped");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("done");
   });
 
   it("deduplicates IDs", async () => {
@@ -913,7 +913,7 @@ describe("advance_tasks tool", () => {
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
     // Should only advance once: implementing → reviewing (not done)
-    expect(r.details.snapshot.tasks[0].status).toBe("reviewing");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("reviewing");
   });
 
   it("renderCall shows task count", () => {
@@ -973,7 +973,7 @@ describe("edit_tasks - abandon", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("abandoned");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("abandoned");
   });
 
   it("succeeds from implementing", async () => {
@@ -1009,7 +1009,7 @@ describe("edit_tasks - abandon", () => {
 
     const r = result as { details: { snapshot: TaskBoardSnapshot; error?: string } };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("abandoned");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("abandoned");
   });
 
   it("rejects from done", async () => {
@@ -1050,7 +1050,7 @@ describe("edit_tasks - abandon", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("Already resolved");
+    expect(r.content[0]!.text).toContain("Already resolved");
   });
 
   it("rejects from abandoned", async () => {
@@ -1088,7 +1088,7 @@ describe("edit_tasks - abandon", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("Already resolved");
+    expect(r.content[0]!.text).toContain("Already resolved");
   });
 });
 
@@ -1150,8 +1150,8 @@ describe("edit_tasks - atomicity", () => {
     };
     expect(r.details.error).toBeDefined();
     // Original task titles unchanged
-    expect(r.details.snapshot.tasks[0].title).toBe("A");
-    expect(r.details.snapshot.tasks[1].title).toBe("B");
+    expect(r.details.snapshot.tasks[0]!.title).toBe("A");
+    expect(r.details.snapshot.tasks[1]!.title).toBe("B");
   });
 });
 
@@ -1196,8 +1196,8 @@ describe("compile_tasks", () => {
       details: { snapshot: TaskBoardSnapshot; error?: string };
     };
     expect(r.details.error).toBeUndefined();
-    expect(r.details.snapshot.tasks[0].status).toBe("ready");
-    expect(r.content[0].text).toContain("Board compiled");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("ready");
+    expect(r.content[0]!.text).toContain("Board compiled");
   });
 
   it("rejects empty board", async () => {
@@ -1210,7 +1210,7 @@ describe("compile_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("Cannot compile an empty board");
+    expect(r.content[0]!.text).toContain("Cannot compile an empty board");
   });
 
   it("rejects when active tasks exist (implementing)", async () => {
@@ -1243,7 +1243,7 @@ describe("compile_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("implementing or reviewing");
+    expect(r.content[0]!.text).toContain("implementing or reviewing");
   });
 
   it("rejects cycles", async () => {
@@ -1287,7 +1287,7 @@ describe("compile_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("cycle detected");
+    expect(r.content[0]!.text).toContain("cycle detected");
   });
 });
 
@@ -1334,7 +1334,7 @@ describe("clear_tasks", () => {
       content: Array<{ type: string; text: string }>;
       details: { snapshot: TaskBoardSnapshot };
     };
-    expect(r.content[0].text).toContain("Board cleared");
+    expect(r.content[0]!.text).toContain("Board cleared");
     expect(r.details.snapshot.tasks).toEqual([]);
     expect(r.details.snapshot.phases).toEqual([]);
   });
@@ -1364,7 +1364,7 @@ describe("clear_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("implementing or reviewing");
+    expect(r.content[0]!.text).toContain("implementing or reviewing");
   });
 
   it("rejects when tasks are reviewing", async () => {
@@ -1394,7 +1394,7 @@ describe("clear_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("implementing or reviewing");
+    expect(r.content[0]!.text).toContain("implementing or reviewing");
   });
 
   it("clears board and allows fresh task ids", async () => {
@@ -1433,7 +1433,7 @@ describe("clear_tasks", () => {
     );
 
     const r = result as { details: { snapshot: TaskBoardSnapshot } };
-    expect(r.details.snapshot.tasks[0].id).toBe("t-1.1");
+    expect(r.details.snapshot.tasks[0]!.id).toBe("t-1.1");
     expect(r.details.snapshot.tasks).toHaveLength(1);
   });
 });
@@ -1484,10 +1484,10 @@ describe("get_ready_tasks", () => {
       details: { snapshot: TaskBoardSnapshot; error?: string };
     };
     expect(r.details.error).toBeUndefined();
-    expect(r.content[0].text).toContain("Claimed 2 task(s)");
-    expect(r.content[0].text).toContain("Review each claimed task");
-    expect(r.details.snapshot.tasks[0].status).toBe("implementing");
-    expect(r.details.snapshot.tasks[1].status).toBe("implementing");
+    expect(r.content[0]!.text).toContain("Claimed 2 task(s)");
+    expect(r.content[0]!.text).toContain("Review each claimed task");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("implementing");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("implementing");
   });
 
   it("returns task details with instruction text", async () => {
@@ -1513,9 +1513,9 @@ describe("get_ready_tasks", () => {
     const result = await callExecute(getReadyTool, { count: 1 }, ctx);
 
     const r = result as { content: Array<{ type: string; text: string }> };
-    expect(r.content[0].text).toContain("t-1.1: Task A");
-    expect(r.content[0].text).toContain("Implement feature X");
-    expect(r.content[0].text).toContain("implementing → reviewing → done");
+    expect(r.content[0]!.text).toContain("t-1.1: Task A");
+    expect(r.content[0]!.text).toContain("Implement feature X");
+    expect(r.content[0]!.text).toContain("implementing → reviewing → done");
   });
 
   it("rejects when implementing/reviewing tasks exist", async () => {
@@ -1551,7 +1551,7 @@ describe("get_ready_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain(
+    expect(r.content[0]!.text).toContain(
       "Cannot claim tasks while tasks are implementing or reviewing",
     );
   });
@@ -1606,8 +1606,8 @@ describe("get_ready_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("No ready tasks available");
-    expect(r.content[0].text).toContain("Blocked tasks");
+    expect(r.content[0]!.text).toContain("No ready tasks available");
+    expect(r.content[0]!.text).toContain("Blocked tasks");
   });
 
   it("done message when all tasks are terminal", async () => {
@@ -1641,7 +1641,7 @@ describe("get_ready_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("All tasks resolved");
+    expect(r.content[0]!.text).toContain("All tasks resolved");
   });
 
   it("rejects count < 1", async () => {
@@ -1654,7 +1654,7 @@ describe("get_ready_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("count must be >= 1");
+    expect(r.content[0]!.text).toContain("count must be >= 1");
   });
 
   it("claims up to count tasks even if more are ready", async () => {
@@ -1687,10 +1687,10 @@ describe("get_ready_tasks", () => {
       content: Array<{ type: string; text: string }>;
       details: { snapshot: TaskBoardSnapshot };
     };
-    expect(r.content[0].text).toContain("Claimed 1 task(s)");
-    expect(r.details.snapshot.tasks[0].status).toBe("implementing");
-    expect(r.details.snapshot.tasks[1].status).toBe("ready");
-    expect(r.details.snapshot.tasks[2].status).toBe("ready");
+    expect(r.content[0]!.text).toContain("Claimed 1 task(s)");
+    expect(r.details.snapshot.tasks[0]!.status).toBe("implementing");
+    expect(r.details.snapshot.tasks[1]!.status).toBe("ready");
+    expect(r.details.snapshot.tasks[2]!.status).toBe("ready");
   });
 
   it("no tasks on board message", async () => {
@@ -1703,7 +1703,7 @@ describe("get_ready_tasks", () => {
       details: { error?: string };
     };
     expect(r.details.error).toBeDefined();
-    expect(r.content[0].text).toContain("No tasks on the board");
+    expect(r.content[0]!.text).toContain("No tasks on the board");
   });
 });
 

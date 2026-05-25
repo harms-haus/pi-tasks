@@ -195,6 +195,7 @@ export function formatContinuePrompt(board: TaskBoardSnapshot): string {
 /** Format the "all done" terminal message. */
 export function formatAllDoneMessage(board: TaskBoardSnapshot): string {
   if (board.phases.length === 0) return "All tasks resolved.";
-  const lastPhase = board.phases[board.phases.length - 1].phase;
-  return `All tasks resolved. ${phaseLabel(board, lastPhase)} complete.`;
+  const lastPhaseRecord = board.phases[board.phases.length - 1];
+  if (!lastPhaseRecord) return "All tasks resolved.";
+  return `All tasks resolved. ${phaseLabel(board, lastPhaseRecord.phase)} complete.`;
 }

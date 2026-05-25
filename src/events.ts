@@ -39,8 +39,10 @@ function clearCountdown(ctx: ExtensionContext): void {
 /** Check if the last assistant message was aborted (user interrupted). */
 function wasAborted(messages: { role: string; stopReason?: string }[]): boolean {
   for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant") {
-      return messages[i].stopReason === "aborted";
+    const msg = messages[i];
+    if (!msg) continue;
+    if (msg.role === "assistant") {
+      return msg.stopReason === "aborted";
     }
   }
   return false;

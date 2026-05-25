@@ -108,7 +108,10 @@ function renderColoredBoardResult(text: string, _snapshot: TaskBoardSnapshot, th
       }
       const taskLineMatch = line.match(/^(\S+\s+)(t-\d+\.\d+:\s)(.*)/);
       if (taskLineMatch) {
-        return taskLineMatch[1] + theme.fg("muted", taskLineMatch[2]) + taskLineMatch[3];
+        const [, prefix, id, rest] = taskLineMatch;
+        if (prefix != null && id != null && rest != null) {
+          return prefix + theme.fg("muted", id) + rest;
+        }
       }
       if (line.includes("→ depends on")) {
         return line.replace(/(t-\d+\.\d+)/g, (m) => theme.fg("muted", m));

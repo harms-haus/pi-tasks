@@ -218,11 +218,11 @@ describe("state", () => {
       const board1 = getBoard();
 
       // Mutate the returned copy
-      board1.tasks[0].title = "MUTATED";
+      board1.tasks[0]!.title = "MUTATED";
 
       // Get a fresh copy — should not reflect the mutation
       const board2 = getBoard();
-      expect(board2.tasks[0].title).not.toBe("MUTATED");
+      expect(board2.tasks[0]!.title).not.toBe("MUTATED");
     });
 
     it("setBoard stores a deep copy (mutations to original don't affect state)", () => {
@@ -230,11 +230,11 @@ describe("state", () => {
       setBoard(original);
 
       // Mutate the original
-      original.tasks[0].title = "MUTATED";
+      original.tasks[0]!.title = "MUTATED";
 
       // getBoard should not reflect the mutation
       const board = getBoard();
-      expect(board.tasks[0].title).not.toBe("MUTATED");
+      expect(board.tasks[0]!.title).not.toBe("MUTATED");
     });
   });
 
@@ -272,9 +272,9 @@ describe("state", () => {
       expect(retrieved).toEqual(board);
 
       // Mutating getBoard result should not affect stored state
-      retrieved.tasks[0].title = "MUTATED";
+      retrieved.tasks[0]!.title = "MUTATED";
       const fresh = getBoard();
-      expect(fresh.tasks[0].title).not.toBe("MUTATED");
+      expect(fresh.tasks[0]!.title).not.toBe("MUTATED");
     });
 
     it("stores a deep copy (mutations to original don't affect state)", () => {
@@ -282,11 +282,11 @@ describe("state", () => {
       setBoardQuiet(original);
 
       // Mutate the original
-      original.tasks[0].title = "MUTATED";
+      original.tasks[0]!.title = "MUTATED";
 
       // getBoard should not reflect the mutation
       const board = getBoard();
-      expect(board.tasks[0].title).not.toBe("MUTATED");
+      expect(board.tasks[0]!.title).not.toBe("MUTATED");
     });
   });
 
@@ -311,7 +311,7 @@ describe("state", () => {
 
       persistEntries(api, { type: "clear_tasks" }, snapshot);
 
-      const passedSnapshot = appendEntry.mock.calls[1][1] as TaskBoardSnapshot;
+      const passedSnapshot = appendEntry.mock.calls[1]![1] as TaskBoardSnapshot;
       // Should be structurally equal and the same reference (no clone)
       expect(passedSnapshot).toEqual(snapshot);
       expect(passedSnapshot).toBe(snapshot);

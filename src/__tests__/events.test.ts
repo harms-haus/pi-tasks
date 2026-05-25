@@ -147,7 +147,7 @@ describe("session_start handler", () => {
 
     const currentBoard = getBoard();
     expect(currentBoard.tasks).toHaveLength(1);
-    expect(currentBoard.tasks[0].title).toBe("Task A");
+    expect(currentBoard.tasks[0]!.title).toBe("Task A");
 
     // updateUI was called (sets status)
     expect(ctx.ui.setStatus).toHaveBeenCalled();
@@ -368,7 +368,7 @@ describe("agent_end handler", () => {
     vi.advanceTimersByTime(3000);
 
     expect(mockAPI.sendUserMessage).toHaveBeenCalled();
-    const prompt = mockAPI.sendUserMessage.mock.calls[0][0] as string;
+    const prompt = mockAPI.sendUserMessage.mock.calls[0]![0] as string;
     expect(prompt).toContain("Tasks remain");
   });
 
@@ -382,7 +382,7 @@ describe("agent_end handler", () => {
     vi.advanceTimersByTime(3000);
 
     expect(mockAPI.sendUserMessage).toHaveBeenCalled();
-    const prompt = mockAPI.sendUserMessage.mock.calls[0][0] as string;
+    const prompt = mockAPI.sendUserMessage.mock.calls[0]![0] as string;
     expect(prompt).toContain("blocked");
   });
 
@@ -486,7 +486,7 @@ describe("agent_end handler", () => {
     vi.advanceTimersByTime(3000);
 
     expect(mockAPI.sendUserMessage).toHaveBeenCalled();
-    const prompt = mockAPI.sendUserMessage.mock.calls[0][0] as string;
+    const prompt = mockAPI.sendUserMessage.mock.calls[0]![0] as string;
     expect(prompt).toContain("Phase 1 is done! Onward!");
 
     // The pendingPhasePrompt should have been cleared
@@ -960,7 +960,7 @@ describe("pending phase prompt consumption", () => {
 
     vi.advanceTimersByTime(3000);
 
-    const prompt = mockAPI.sendUserMessage.mock.calls[0][0] as string;
+    const prompt = mockAPI.sendUserMessage.mock.calls[0]![0] as string;
     expect(prompt.startsWith("🎉 Phase 1 complete!")).toBe(true);
     expect(prompt).toContain("Tasks remain");
   });
@@ -988,7 +988,7 @@ describe("pending phase prompt consumption", () => {
 
     vi.advanceTimersByTime(3000);
 
-    const prompt = mockAPI.sendUserMessage.mock.calls[0][0] as string;
+    const prompt = mockAPI.sendUserMessage.mock.calls[0]![0] as string;
     expect(prompt.startsWith("Tasks remain")).toBe(true);
   });
 });
