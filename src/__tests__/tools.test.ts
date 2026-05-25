@@ -2293,9 +2293,8 @@ describe("catch blocks with non-Error values", () => {
   it("write_tasks catch with non-Error uses String(err)", async () => {
     // Mock writeTasks to throw a string (non-Error)
     const engine = await import("../engine");
-    const origWriteTasks = engine.writeTasks;
     vi.spyOn(engine, "writeTasks").mockImplementation(() => {
-      throw "string error";
+      throw "string error"; // eslint-disable-line @typescript-eslint/only-throw-error
     });
 
     const tool = createWriteTasksTool(api);
@@ -2321,7 +2320,7 @@ describe("catch blocks with non-Error values", () => {
   it("edit_tasks catch with non-Error uses String(err)", async () => {
     const engine = await import("../engine");
     vi.spyOn(engine, "applyEdits").mockImplementation(() => {
-      throw "edit error";
+      throw "edit error"; // eslint-disable-line @typescript-eslint/only-throw-error
     });
 
     const tool = createEditTasksTool(api);
@@ -2343,7 +2342,7 @@ describe("catch blocks with non-Error values", () => {
   it("compile_tasks catch with non-Error uses String(err)", async () => {
     const engine = await import("../engine");
     vi.spyOn(engine, "compileBoard").mockImplementation(() => {
-      throw "compile error";
+      throw "compile error"; // eslint-disable-line @typescript-eslint/only-throw-error
     });
 
     const tool = createCompileTasksTool(api);
@@ -2361,7 +2360,7 @@ describe("catch blocks with non-Error values", () => {
   it("get_ready_tasks catch with non-Error uses String(err)", async () => {
     const engine = await import("../engine");
     vi.spyOn(engine, "claimReadyTasks").mockImplementation(() => {
-      throw "claim error";
+      throw "claim error"; // eslint-disable-line @typescript-eslint/only-throw-error
     });
 
     const tool = createGetReadyTasksTool(api);
@@ -2379,7 +2378,7 @@ describe("catch blocks with non-Error values", () => {
   it("advance_tasks catch with non-Error uses String(err)", async () => {
     const engine = await import("../engine");
     vi.spyOn(engine, "applyEdits").mockImplementation(() => {
-      throw "advance error";
+      throw "advance error"; // eslint-disable-line @typescript-eslint/only-throw-error
     });
 
     const tool = createAdvanceTasksTool(api);
