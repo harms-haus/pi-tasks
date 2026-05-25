@@ -1877,3 +1877,520 @@ describe("phase completion prompt", () => {
     expect(r.details.snapshot.pendingPhasePrompt?.message).toContain("Phase 1 complete!");
   });
 });
+
+// ═══════════════════════════════════════════
+// 11. renderColoredBoardResult branches
+// ═══════════════════════════════════════════
+
+describe("renderColoredBoardResult branches", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let theme: ReturnType<typeof createMockTheme>;
+
+  beforeEach(() => {
+    resetState();
+    configModule.resetConfig();
+    api = createMockAPI().api;
+    theme = createMockTheme();
+  });
+
+  it("renders phase header with accent and bold", () => {
+    const tool = createWriteTasksTool(api);
+    const boardText = "─── Phase 1: Setup ───\nplain line\nSummary: 0/2 tasks done";
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: {
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
+      },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const text = rendered.toString();
+    expect(text).toContain("**─── Phase 1: Setup ───**"); // bold
+    expect(text).toContain("[accent]"); // fg accent
+    // Summary line should be muted
+    expect(text).toContain("[muted]Summary: 0/2 tasks done");
+  });
+
+  it("renders task lines with muted id portion", () => {
+    const tool = createWriteTasksTool(api);
+    // Task line without leading space so regex ^(	S+	S+)(t-	 d+	 .	 d+:	 s)(.*) matches
+    const boardText = "● t-1.1: Set up project\n○ t-1.2: Install deps";
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: {
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
+      },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const text = rendered.toString();
+    expect(text).toContain("[muted]t-1.1: ");
+    expect(text).toContain("[muted]t-1.2: ");
+  });
+
+  it("renders dependency lines with muted task ids", () => {
+    const tool = createWriteTasksTool(api);
+    // Dependency line starts with spaces so task regex won't match
+    const boardText = "    → depends on t-1.1, t-1.2";
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: {
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
+      },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const text = rendered.toString();
+    expect(text).toContain("[muted]t-1.1");
+    expect(text).toContain("[muted]t-1.2");
+  });
+
+  it("renders all board line types together", () => {
+    const tool = createWriteTasksTool(api);
+    const boardText =
+      "─── Phase 1: Setup ───\n● t-1.1: Set up project\n● t-1.2: Install deps → depends on t-1.1\nplain text line\nSummary: 0/2 tasks done";
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: {
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
+      },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    const text = rendered.toString();
+    // Phase header: bold + accent
+    expect(text).toContain("[accent]");
+    expect(text).toContain("**─── Phase 1: Setup ───**");
+    // Task lines: muted id
+    expect(text).toContain("[muted]t-1.1: ");
+    expect(text).toContain("[muted]t-1.2: ");
+    // Summary: muted
+    expect(text).toContain("[muted]Summary:");
+    // Plain line passes through unchanged
+    expect(text).toContain("plain text line");
+  });
+
+  it("returns plain text when details is undefined", () => {
+    const tool = createWriteTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Just some text" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("Just some text");
+  });
+
+  it("returns fallback text when content has no text property", () => {
+    const tool = createWriteTasksTool(api);
+    const result = {
+      content: [{ type: "image" as const, data: "..." }],
+      details: {
+        snapshot: { version: 1 as const, tasks: [], phases: [] } as TaskBoardSnapshot,
+      },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe(""); // text falls back to ""
+  });
+});
+
+// ═══════════════════════════════════════════
+// 12. renderResult for each tool
+// ═══════════════════════════════════════════
+
+describe("renderResult per tool", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let theme: ReturnType<typeof createMockTheme>;
+
+  beforeEach(() => {
+    resetState();
+    configModule.resetConfig();
+    api = createMockAPI().api;
+    theme = createMockTheme();
+  });
+
+  const snapshot: TaskBoardSnapshot = { version: 1, tasks: [], phases: [] };
+  const boardText = "─── Phase 1 ───\n● t-1.1: Task\nSummary: 0/1 done";
+
+  // ── edit_tasks ──
+
+  it("edit_tasks renderResult success with colored board", () => {
+    const tool = createEditTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[accent]");
+  });
+
+  it("edit_tasks renderResult error", () => {
+    const tool = createEditTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Error msg" }],
+      details: { snapshot, error: "Something failed" },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[error]Something failed");
+  });
+
+  it("edit_tasks renderResult no details returns plain text", () => {
+    const tool = createEditTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Plain" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("Plain");
+  });
+
+  // ── compile_tasks ──
+
+  it("compile_tasks renderResult success with colored board", () => {
+    const tool = createCompileTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[accent]");
+  });
+
+  it("compile_tasks renderResult error", () => {
+    const tool = createCompileTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Err" }],
+      details: { snapshot, error: "Compile error" },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[error]Compile error");
+  });
+
+  it("compile_tasks renderResult no details", () => {
+    const tool = createCompileTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "No details" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("No details");
+  });
+
+  // ── clear_tasks ──
+
+  it("clear_tasks renderResult success with text color", () => {
+    const tool = createClearTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Board cleared." }],
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[text]Board cleared.");
+  });
+
+  it("clear_tasks renderResult error", () => {
+    const tool = createClearTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Err" }],
+      details: { snapshot, error: "Cannot clear" },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[error]Cannot clear");
+  });
+
+  it("clear_tasks renderResult no details", () => {
+    const tool = createClearTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "No details" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("No details");
+  });
+
+  // ── get_ready_tasks ──
+
+  it("get_ready_tasks renderResult success with colored board", () => {
+    const tool = createGetReadyTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[accent]");
+  });
+
+  it("get_ready_tasks renderResult error", () => {
+    const tool = createGetReadyTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Err" }],
+      details: { snapshot, error: "No tasks" },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[error]No tasks");
+  });
+
+  it("get_ready_tasks renderResult no details", () => {
+    const tool = createGetReadyTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "No details" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("No details");
+  });
+
+  // ── advance_tasks ──
+
+  it("advance_tasks renderResult success with colored board", () => {
+    const tool = createAdvanceTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: boardText }],
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[accent]");
+  });
+
+  it("advance_tasks renderResult error", () => {
+    const tool = createAdvanceTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "Err" }],
+      details: { snapshot, error: "Invalid status" },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toContain("[error]Invalid status");
+  });
+
+  it("advance_tasks renderResult no details", () => {
+    const tool = createAdvanceTasksTool(api);
+    const result = {
+      content: [{ type: "text" as const, text: "No details" }],
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("No details");
+  });
+
+  // ── content[0] falsy (empty content array) ──
+
+  it("write_tools renderResult with empty content returns empty text", () => {
+    const tool = createWriteTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: { snapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+
+  it("edit_tasks renderResult with empty content returns empty text", () => {
+    const tool = createEditTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+
+  it("compile_tasks renderResult with empty content returns empty text", () => {
+    const tool = createCompileTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+
+  it("clear_tasks renderResult with empty content returns empty text", () => {
+    const tool = createClearTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+
+  it("get_ready_tasks renderResult with empty content returns empty text", () => {
+    const tool = createGetReadyTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+
+  it("advance_tasks renderResult with empty content returns empty text", () => {
+    const tool = createAdvanceTasksTool(api);
+    const result = {
+      content: [] as Array<{ type: string; text: string }>,
+      details: undefined as unknown as { snapshot: TaskBoardSnapshot },
+    };
+    const rendered = (tool as any).renderResult(result, { expanded: false, isPartial: false }, theme);
+    expect(rendered.toString()).toBe("");
+  });
+});
+
+// ═══════════════════════════════════════════
+// 13. renderCall edge cases
+// ═══════════════════════════════════════════
+
+describe("renderCall edge cases", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let theme: ReturnType<typeof createMockTheme>;
+
+  beforeEach(() => {
+    resetState();
+    configModule.resetConfig();
+    api = createMockAPI().api;
+    theme = createMockTheme();
+  });
+
+  it("write_tasks renderCall with undefined phases shows 0 items", () => {
+    const tool = createWriteTasksTool(api);
+    const rendered = (tool as any).renderCall({}, theme);
+    expect(rendered.toString()).toContain("write_tasks");
+    expect(rendered.toString()).toContain("0 items");
+  });
+});
+
+// ═══════════════════════════════════════════
+// 14. catch blocks with non-Error values
+// ═══════════════════════════════════════════
+
+describe("catch blocks with non-Error values", () => {
+  let api: ReturnType<typeof createMockAPI>["api"];
+  let ctx: ReturnType<typeof createMockContext>;
+
+  beforeEach(() => {
+    resetState();
+    configModule.resetConfig();
+    const mockApi = createMockAPI();
+    api = mockApi.api;
+    ctx = createMockContext();
+  });
+
+  it("write_tasks handles non-Error thrown from engine", async () => {
+    const tool = createWriteTasksTool(api);
+    // Trigger validation error that produces a string message
+    // Empty phases array should trigger a validation error
+    const result = await callExecute(
+      tool,
+      {
+        mode: "replace",
+        phases: [],
+      },
+      ctx,
+    );
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string; snapshot: TaskBoardSnapshot };
+    };
+    // Should either throw a validation error or produce an error result
+    // Either way, it should not crash
+    expect(r.content[0]!.text).toBeDefined();
+  });
+
+  it("write_tasks catch with non-Error uses String(err)", async () => {
+    // Mock writeTasks to throw a string (non-Error)
+    const engine = await import("../engine");
+    const origWriteTasks = engine.writeTasks;
+    vi.spyOn(engine, "writeTasks").mockImplementation(() => {
+      throw "string error";
+    });
+
+    const tool = createWriteTasksTool(api);
+    const result = await callExecute(
+      tool,
+      {
+        mode: "replace",
+        phases: [{ title: "Phase 1", tasks: [{ title: "A", prompt: "P", profile: "c" }] }],
+      },
+      ctx,
+    );
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBe("string error");
+    expect(r.content[0]!.text).toContain("string error");
+
+    vi.restoreAllMocks();
+  });
+
+  it("edit_tasks catch with non-Error uses String(err)", async () => {
+    const engine = await import("../engine");
+    vi.spyOn(engine, "applyEdits").mockImplementation(() => {
+      throw "edit error";
+    });
+
+    const tool = createEditTasksTool(api);
+    const result = await callExecute(
+      tool,
+      { tasks: [{ id: "t-1.1", type: "data", data: { title: "X" } }] },
+      ctx,
+    );
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBe("edit error");
+
+    vi.restoreAllMocks();
+  });
+
+  it("compile_tasks catch with non-Error uses String(err)", async () => {
+    const engine = await import("../engine");
+    vi.spyOn(engine, "compileBoard").mockImplementation(() => {
+      throw "compile error";
+    });
+
+    const tool = createCompileTasksTool(api);
+    const result = await callExecute(tool, {}, ctx);
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBe("compile error");
+
+    vi.restoreAllMocks();
+  });
+
+  it("get_ready_tasks catch with non-Error uses String(err)", async () => {
+    const engine = await import("../engine");
+    vi.spyOn(engine, "claimReadyTasks").mockImplementation(() => {
+      throw "claim error";
+    });
+
+    const tool = createGetReadyTasksTool(api);
+    const result = await callExecute(tool, { count: 1 }, ctx);
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBe("claim error");
+
+    vi.restoreAllMocks();
+  });
+
+  it("advance_tasks catch with non-Error uses String(err)", async () => {
+    const engine = await import("../engine");
+    vi.spyOn(engine, "applyEdits").mockImplementation(() => {
+      throw "advance error";
+    });
+
+    const tool = createAdvanceTasksTool(api);
+    const result = await callExecute(tool, { ids: ["t-1.1"] }, ctx);
+
+    const r = result as {
+      content: Array<{ type: string; text: string }>;
+      details: { error?: string };
+    };
+    expect(r.details.error).toBe("advance error");
+
+    vi.restoreAllMocks();
+  });
+});

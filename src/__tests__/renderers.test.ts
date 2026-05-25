@@ -35,6 +35,24 @@ describe("registerMessageRenderers", () => {
     expect(result.toString()).toBe("[accent]📋 [dim]Board context here");
   });
 
+  it("renders phased-tasks-context with JSON-stringified content when content is not a string", () => {
+    const mockObj = createMockAPI();
+    registerMessageRenderers(mockObj.api);
+
+    const contextCall = mockObj.registerMessageRenderer.mock.calls.find(
+      (call: unknown) => (call as [string, unknown])[0] === "phased-tasks-context",
+    );
+    const renderer = (contextCall as [string, (...args: unknown[]) => unknown])[1];
+    const theme = createMockTheme();
+
+    const result = renderer({ content: { foo: "bar" } }, {}, theme) as { toString(): string };
+
+    expect(theme.fg).toHaveBeenCalledWith("accent", "📋 ");
+    expect(theme.fg).toHaveBeenCalledWith("dim", JSON.stringify({ foo: "bar" }));
+    expect(result).toBeDefined();
+    expect(result.toString()).toBe(`[accent]📋 [dim]${JSON.stringify({ foo: "bar" })}`);
+  });
+
   it("renders phased-tasks-notice with warning icon and text content", () => {
     const mockObj = createMockAPI();
     registerMessageRenderers(mockObj.api);
@@ -52,5 +70,23 @@ describe("registerMessageRenderers", () => {
     expect(theme.fg).toHaveBeenCalledWith("text", "Limit reached!");
     expect(result).toBeDefined();
     expect(result.toString()).toBe("[warning]⚠ [text]Limit reached!");
+  });
+
+  it("renders phased-tasks-notice with JSON-stringified content when content is not a string", () => {
+    const mockObj = createMockAPI();
+    registerMessageRenderers(mockObj.api);
+
+    const noticeCall = mockObj.registerMessageRenderer.mock.calls.find(
+      (call: unknown) => (call as [string, unknown])[0] === "phased-tasks-notice",
+    );
+    const renderer = (noticeCall as [string, (...args: unknown[]) => unknown])[1];
+    const theme = createMockTheme();
+
+    const result = renderer({ content: { count: 5 } }, {}, theme) as { toString(): string };
+
+    expect(theme.fg).toHaveBeenCalledWith("warning", "⚠ ");
+    expect(theme.fg).toHaveBeenCalledWith("text", JSON.stringify({ count: 5 }));
+    expect(result).toBeDefined();
+    expect(result.toString()).toBe(`[warning]⚠ [text]${JSON.stringify({ count: 5 })}`);
   });
 });
